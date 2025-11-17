@@ -1,19 +1,23 @@
-# WhatsApp Bot Project
+# Proyek Bot WhatsApp
 
-## Overview
-A modular WhatsApp bot built with whatsapp-web.js featuring dynamic command and event loading. The project uses a clean, separated file structure for easy maintenance and scalability.
+## Ringkasan
+Bot WhatsApp modular yang dibangun dengan whatsapp-web.js dengan fitur dynamic command dan event loading. Proyek menggunakan struktur file yang bersih dan terpisah untuk kemudahan pemeliharaan dan skalabilitas.
 
-## Recent Changes (November 17, 2025)
-- Initial project setup with Node.js and ES modules
-- Created modular architecture with commands/, events/, and utils/ folders
-- Implemented dynamic command and event loader system in index.js
-- Added three example commands: ping, help, info
-- Added three event handlers: ready, qr, message
-- Configured system Chromium for whatsapp-web.js/puppeteer compatibility
-- Improved dynamic Chromium path detection with environment variable fallback
-- Added error handling for command/event loading failures
-- Successfully deployed with authentication working
-- Bot authenticated and ready to receive commands
+## Perubahan Terbaru (17 November 2025)
+- Setup awal proyek dengan Node.js dan ES modules
+- Membuat arsitektur modular dengan folder commands/, events/, dan utils/
+- Implementasi sistem dynamic command dan event loader di index.js
+- Menambahkan tiga perintah contoh: ping, help, info
+- Menambahkan tiga event handler: ready, qr, message
+- Konfigurasi system Chromium untuk kompatibilitas whatsapp-web.js/puppeteer
+- Peningkatan deteksi path Chromium dinamis dengan environment variable fallback
+- Menambahkan error handling untuk kegagalan loading command/event
+- Berhasil di-deploy dengan autentikasi bekerja
+- **Menerjemahkan semua teks ke bahasa Indonesia**
+- **Mengubah prefix dari `!` menjadi `.`**
+- **Membuat config.json untuk pengaturan bot (prefix, botName, dll)**
+- **Menambahkan dukungan GEMINI_API_KEY via environment variables**
+- Bot terotentikasi dan siap menerima perintah
 
 ## Project Architecture
 
