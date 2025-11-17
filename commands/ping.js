@@ -1,12 +1,13 @@
 export default {
-  name: 'ping',
-  description: 'Cek responsivitas bot',
-  usage: '.ping',
+  name: "ping",
+  description: "Cek responsivitas bot",
+  usage: ".ping",
+  prefixRequired: true,
+  triggers: [".ping"],
   async execute(message, args, bot) {
     const start = Date.now();
-    const sent = await message.reply('🏓 Mengirim ping...');
+    await message.reply("🏓 Mengirim ping...");
     const latency = Date.now() - start;
-    
-    await sent.edit(`🏓 Pong!\n⏱️ Latensi: ${latency}ms`);
-  }
+    await message.reply(`🏓 Pong!\n⏱️ Latensi: ${latency}ms`);
+  },
 };
