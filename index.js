@@ -3,16 +3,30 @@ const { Client, LocalAuth } = pkg;
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
+import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+function getChromiumPath() {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+  
+  try {
+    return execSync('which chromium', { encoding: 'utf8' }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
 class WhatsAppBot {
   constructor() {
-    this.client = new Client({
+    const chromiumPath = getChromiumPath();
+    
+    const clientConfig = {
       authStrategy: new LocalAuth(),
       puppeteer: {
-        executablePath: '/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -23,8 +37,14 @@ class WhatsAppBot {
           '--disable-gpu'
         ],
       }
-    });
+    };
 
+    if (chromiumPath) {
+      clientConfig.puppeteer.executablePath = chromiumPath;
+      console.log(`Using Chromium at: ${chromiumPath}`);
+    }
+
+    this.client = new Client(clientConfig);
     this.commands = new Map();
     this.events = new Map();
     this.prefix = '!';
@@ -32,38 +52,56 @@ class WhatsAppBot {
 
   async loadCommands() {
     const commandsPath = join(__dirname, 'commands');
-    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+    
+    try {
+      const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-    for (const file of commandFiles) {
-      const filePath = join(commandsPath, file);
-      const command = await import(`file://${filePath}`);
-      
-      if (command.default && command.default.name) {
-        this.commands.set(command.default.name, command.default);
-        console.log(`✓ Loaded command: ${command.default.name}`);
+      for (const file of commandFiles) {
+        try {
+          const filePath = join(commandsPath, file);
+          const command = await import(`file://${filePath}`);
+          
+          if (command.default && command.default.name) {
+            this.commands.set(command.default.name, command.default);
+            console.log(`✓ Loaded command: ${command.default.name}`);
+          }
+        } catch (error) {
+          console.error(`❌ Failed to load command ${file}:`, error.message);
+        }
       }
+    } catch (error) {
+      console.error('❌ Failed to read commands directory:', error.message);
     }
   }
 
   async loadEvents() {
     const eventsPath = join(__dirname, 'events');
-    const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+    
+    try {
+      const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 
-    for (const file of eventFiles) {
-      const filePath = join(eventsPath, file);
-      const event = await import(`file://${filePath}`);
-      
-      if (event.default && event.default.name && event.default.execute) {
-        this.events.set(event.default.name, event.default);
-        
-        if (event.default.once) {
-          this.client.once(event.default.name, (...args) => event.default.execute(this, ...args));
-        } else {
-          this.client.on(event.default.name, (...args) => event.default.execute(this, ...args));
+      for (const file of eventFiles) {
+        try {
+          const filePath = join(eventsPath, file);
+          const event = await import(`file://${filePath}`);
+          
+          if (event.default && event.default.name && event.default.execute) {
+            this.events.set(event.default.name, event.default);
+            
+            if (event.default.once) {
+              this.client.once(event.default.name, (...args) => event.default.execute(this, ...args));
+            } else {
+              this.client.on(event.default.name, (...args) => event.default.execute(this, ...args));
+            }
+            
+            console.log(`✓ Loaded event: ${event.default.name}`);
+          }
+        } catch (error) {
+          console.error(`❌ Failed to load event ${file}:`, error.message);
         }
-        
-        console.log(`✓ Loaded event: ${event.default.name}`);
       }
+    } catch (error) {
+      console.error('❌ Failed to read events directory:', error.message);
     }
   }
 
