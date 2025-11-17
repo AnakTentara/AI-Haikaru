@@ -1,12 +1,12 @@
 export default {
   name: 'ping',
-  description: 'Check if the bot is responsive',
-  usage: '!ping',
+  description: 'Cek responsivitas bot',
+  usage: '.ping',
   async execute(message, args, bot) {
     const start = Date.now();
-    const sent = await message.reply('🏓 Pinging...');
+    const sent = await message.reply('🏓 Mengirim ping...');
     const latency = Date.now() - start;
     
-    await sent.edit(`🏓 Pong!\n⏱️ Latency: ${latency}ms`);
+    await sent.edit(`🏓 Pong!\n⏱️ Latensi: ${latency}ms`);
   }
 };

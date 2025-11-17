@@ -1,23 +1,23 @@
 export default {
   name: 'info',
-  description: 'Get information about the bot',
-  usage: '!info',
+  description: 'Dapatkan informasi tentang bot',
+  usage: '.info',
   async execute(message, args, bot) {
     const chat = await message.getChat();
     const contact = await message.getContact();
 
-    let info = `🤖 *WhatsApp Bot Information*\n\n`;
-    info += `📱 Bot Name: WhatsApp Bot\n`;
-    info += `⚙️ Version: 1.0.0\n`;
-    info += `📋 Total Commands: ${bot.commands.size}\n`;
+    let info = `🤖 *Informasi Bot WhatsApp*\n\n`;
+    info += `📱 Nama Bot: ${bot.config.botName}\n`;
+    info += `⚙️ Versi: 1.0.0\n`;
+    info += `📋 Total Perintah: ${bot.commands.size}\n`;
     info += `⚡ Prefix: ${bot.prefix}\n\n`;
-    info += `👤 Your Info:\n`;
-    info += `📞 Number: ${contact.number}\n`;
-    info += `💬 Chat Type: ${chat.isGroup ? 'Group' : 'Private'}\n`;
+    info += `👤 Info Anda:\n`;
+    info += `📞 Nomor: ${contact.number}\n`;
+    info += `💬 Tipe Chat: ${chat.isGroup ? 'Grup' : 'Pribadi'}\n`;
     
     if (chat.isGroup) {
-      info += `👥 Group Name: ${chat.name}\n`;
-      info += `👥 Participants: ${chat.participants.length}`;
+      info += `👥 Nama Grup: ${chat.name}\n`;
+      info += `👥 Peserta: ${chat.participants.length}`;
     }
 
     await message.reply(info);

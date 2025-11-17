@@ -1,32 +1,32 @@
 export default {
   name: 'help',
-  description: 'Show all available commands',
-  usage: '!help [command]',
+  description: 'Tampilkan semua perintah yang tersedia',
+  usage: '.help [perintah]',
   async execute(message, args, bot) {
     if (args.length > 0) {
       const commandName = args[0].toLowerCase();
       const command = bot.commands.get(commandName);
 
       if (!command) {
-        return message.reply(`❌ Command \`${commandName}\` not found.`);
+        return message.reply(`❌ Perintah \`${commandName}\` tidak ditemukan.`);
       }
 
-      let reply = `📖 *Command: ${command.name}*\n\n`;
-      reply += `📝 Description: ${command.description || 'No description available'}\n`;
-      reply += `💡 Usage: ${command.usage || `!${command.name}`}`;
+      let reply = `📖 *Perintah: ${command.name}*\n\n`;
+      reply += `📝 Deskripsi: ${command.description || 'Tidak ada deskripsi'}\n`;
+      reply += `💡 Penggunaan: ${command.usage || `${bot.prefix}${command.name}`}`;
 
       return message.reply(reply);
     }
 
-    let helpText = `🤖 *WhatsApp Bot - Command List*\n\n`;
+    let helpText = `🤖 *Bot WhatsApp - Daftar Perintah*\n\n`;
     helpText += `Prefix: *${bot.prefix}*\n\n`;
 
     bot.commands.forEach(command => {
       helpText += `*${bot.prefix}${command.name}*\n`;
-      helpText += `${command.description || 'No description'}\n\n`;
+      helpText += `${command.description || 'Tidak ada deskripsi'}\n\n`;
     });
 
-    helpText += `\nUse *${bot.prefix}help [command]* for detailed info`;
+    helpText += `\nGunakan *${bot.prefix}help [perintah]* untuk info detail`;
 
     await message.reply(helpText);
   }
