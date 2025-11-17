@@ -1,101 +1,129 @@
-# WhatsApp Bot
+# Bot WhatsApp
 
-A modular WhatsApp bot built with whatsapp-web.js featuring a clean, dynamic workspace with separated command and event handlers.
+Bot WhatsApp modular yang dibangun dengan whatsapp-web.js dengan struktur workspace yang bersih dan dinamis dengan pemisahan command dan event handler.
 
-## Project Structure
+## Struktur Proyek
 
 ```
 whatsapp-bot/
-├── index.js           # Main bot file with dynamic loaders
-├── commands/          # Command files (each command in separate file)
-│   ├── ping.js       # Check bot responsiveness
-│   ├── help.js       # Show all available commands
-│   └── info.js       # Get bot and chat information
-├── events/            # Event handler files
-│   ├── ready.js      # Bot ready event
-│   ├── qr.js         # QR code display event
-│   └── message.js    # Message handler and command router
-└── utils/             # Utility functions (for future use)
+├── config.json        # Konfigurasi bot (prefix, dll)
+├── index.js           # File utama bot dengan dynamic loaders
+├── commands/          # File perintah (setiap perintah dalam file terpisah)
+│   ├── ping.js       # Cek responsivitas bot
+│   ├── help.js       # Tampilkan semua perintah
+│   └── info.js       # Dapatkan info bot dan chat
+├── events/            # File event handler
+│   ├── ready.js      # Event bot siap
+│   ├── qr.js         # Event tampilkan QR code
+│   └── message.js    # Handler pesan dan router perintah
+└── utils/             # Fungsi utilitas (untuk penggunaan masa depan)
 ```
 
-## Features
+## Fitur
 
-- **Dynamic Command Loading**: Automatically loads all commands from the `commands/` folder
-- **Modular Event System**: Each event is in its own file in the `events/` folder
-- **Clean Architecture**: Easy to add new commands and events
-- **Command Prefix**: Default prefix is `!` (customizable)
+- **Dynamic Command Loading**: Otomatis memuat semua perintah dari folder `commands/`
+- **Modular Event System**: Setiap event dalam file terpisah di folder `events/`
+- **Clean Architecture**: Mudah menambah perintah dan event baru
+- **Configurable**: Prefix dan pengaturan lain dapat dikonfigurasi via `config.json`
+- **Dukungan API**: Siap untuk integrasi dengan Gemini API dan layanan lainnya
 
-## Getting Started
+## Memulai
 
-1. **Start the bot**:
+1. **Jalankan bot**:
    ```bash
    npm start
    ```
 
-2. **Scan the QR code** with your WhatsApp mobile app:
-   - Open WhatsApp on your phone
-   - Go to Settings > Linked Devices
-   - Tap "Link a Device"
-   - Scan the QR code displayed in the console
+2. **Pindai kode QR** dengan aplikasi WhatsApp di ponsel Anda:
+   - Buka WhatsApp di ponsel
+   - Pergi ke Pengaturan > Perangkat Tertaut
+   - Ketuk "Tautkan Perangkat"
+   - Pindai kode QR yang ditampilkan di konsol
 
-3. **Test the bot** by sending a message:
+3. **Uji bot** dengan mengirim pesan:
    ```
-   !ping
-   !help
-   !info
+   .ping
+   .help
+   .info
    ```
 
-## Adding New Commands
+## Konfigurasi
 
-Create a new file in the `commands/` folder:
+Edit file `config.json` untuk mengubah pengaturan bot:
+
+```json
+{
+  "prefix": ".",
+  "botName": "WhatsApp Bot",
+  "language": "id",
+  "features": {
+    "enableLogging": true,
+    "enableGemini": false
+  }
+}
+```
+
+### Pengaturan API Key
+
+Untuk API key seperti `GEMINI_API_KEY`, gunakan environment variables untuk keamanan:
+
+1. Klik tab "Secrets" di sidebar Replit
+2. Tambahkan secret baru dengan nama `GEMINI_API_KEY`
+3. Masukkan API key Anda
+4. Bot akan otomatis membaca dari environment variable
+
+**Jangan pernah menyimpan API key di config.json atau commit ke repository!**
+
+## Menambah Perintah Baru
+
+Buat file baru di folder `commands/`:
 
 ```javascript
-// commands/example.js
+// commands/contoh.js
 export default {
-  name: 'example',
-  description: 'Example command description',
-  usage: '!example [args]',
+  name: 'contoh',
+  description: 'Deskripsi perintah contoh',
+  usage: '.contoh [argumen]',
   async execute(message, args, bot) {
-    // Your command logic here
-    await message.reply('This is an example command!');
+    // Logika perintah Anda di sini
+    await message.reply('Ini adalah perintah contoh!');
   }
 };
 ```
 
-The command will be automatically loaded when the bot starts.
+Perintah akan otomatis dimuat saat bot dimulai.
 
-## Adding New Events
+## Menambah Event Baru
 
-Create a new file in the `events/` folder:
+Buat file baru di folder `events/`:
 
 ```javascript
-// events/example.js
+// events/contoh.js
 export default {
-  name: 'event_name',
-  once: false, // Set to true if event should only fire once
+  name: 'nama_event',
+  once: false, // Set true jika event hanya dipicu sekali
   execute(bot, ...args) {
-    // Your event logic here
-    console.log('Event triggered!');
+    // Logika event Anda di sini
+    console.log('Event dipicu!');
   }
 };
 ```
 
-## Available Commands
+## Perintah yang Tersedia
 
-- **!ping** - Check if the bot is responsive and see latency
-- **!help** - Display all available commands or get help for a specific command
-- **!info** - Get information about the bot and current chat
+- **.ping** - Cek apakah bot responsif dan lihat latensi
+- **.help** - Tampilkan semua perintah atau bantuan untuk perintah tertentu
+- **.info** - Dapatkan informasi tentang bot dan chat saat ini
 
-## Configuration
+## Catatan
 
-You can customize the bot by modifying the `WhatsAppBot` class in `index.js`:
+- Bot menggunakan strategi `LocalAuth`, jadi autentikasi bertahan antar restart
+- Data sesi disimpan di folder `.wwebjs_auth/`
+- Bot berjalan di workflow console untuk output
 
-- Change the command prefix by modifying `this.prefix`
-- Add more Puppeteer options in the `Client` configuration
-- Customize the authentication strategy
+## Keamanan
 
-## Notes
-
-- The bot uses `LocalAuth` strategy, so authentication is persisted between restarts
-- Session data is stored in `.wwebjs_auth/` folder
-- The bot is running on port-bound workflow for console output
+- **Jangan** simpan API key di file konfigurasi
+- **Gunakan** environment variables atau Replit Secrets untuk API key
+- **Jangan** commit file `.env` atau credentials ke repository
+- File `.gitignore` sudah dikonfigurasi untuk melindungi data sensitif
