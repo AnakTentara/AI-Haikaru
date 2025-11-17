@@ -13,11 +13,11 @@ export default {
     if (!command) return;
 
     try {
-      console.log(`🔵 Command: ${commandName} | From: ${message.from} | Chat: ${message.id.remote}`);
+      console.log(`🔵 Perintah: ${commandName} | Dari: ${message.from} | Chat: ${message.id.remote}`);
       await command.execute(message, args, bot);
     } catch (error) {
-      console.error(`❌ Error executing command ${commandName}:`, error);
-      await message.reply('❌ There was an error executing that command.');
+      console.error(`❌ Kesalahan saat menjalankan perintah ${commandName}:`, error);
+      await message.reply(bot.config.messages.errorExecutingCommand);
     }
   }
 };

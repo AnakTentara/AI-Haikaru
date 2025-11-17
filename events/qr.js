@@ -4,10 +4,10 @@ export default {
   name: 'qr',
   once: false,
   execute(bot, qr) {
-    console.log('\n📲 Scan this QR code with your WhatsApp:');
+    console.log('\n📲 Pindai kode QR ini dengan WhatsApp Anda:');
     console.log('═══════════════════════════════════════\n');
     qrcode.generate(qr, { small: true });
     console.log('\n═══════════════════════════════════════');
-    console.log('⏳ Waiting for authentication...\n');
+    console.log('⏳ Menunggu autentikasi...\n');
   }
 };
