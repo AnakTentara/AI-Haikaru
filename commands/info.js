@@ -15,7 +15,7 @@ export default {
 
     const aiSalutation = await getGeminiResponse(bot, geminiPrompt);
 
-    let info = `*${aiSalutation}*\n\n`;
+    let info = `> [INFO]\n${aiSalutation}\n\n`;
 
     info += `━━━━━━ *STATISTIK BOT* ━━━━━━\n`;
     info += `🤖 Nama Bot: *${bot.config.botName}*\n`;

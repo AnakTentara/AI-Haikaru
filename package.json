@@ -4,7 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "nodemon index.js"
   },
   "keywords": [
     "whatsapp",
@@ -16,7 +16,11 @@
   "dependencies": {
     "@google/genai": "^1.29.1",
     "express": "^5.1.0",
+    "mongodb": "^7.0.0",
     "qrcode-terminal": "^0.12.0",
     "whatsapp-web.js": "^1.34.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
   }
 }

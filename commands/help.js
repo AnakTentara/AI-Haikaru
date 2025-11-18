@@ -41,7 +41,7 @@ export default {
       commandList += ` - ${command.name}: ${command.description || "Tidak ada deskripsi"}\n`;
     });
 
-    const geminiPrompt = `Daftar perintah bot ini adalah:\n\n${commandList}\n\nBerikan balasan untuk perintah '.help'. Balasan harus berupa sapaan yang santai, diikuti dengan daftar perintah di atas, diakhiri dengan instruksi cara melihat detail perintah. Gunakan Markdown WhatsApp (tebal *teks*). Jangan menggunakan kode blok.`;
+    const geminiPrompt = `Daftar perintah bot ini adalah:\n\n${commandList}\n\nBerikan balasan untuk perintah '.help'. Balasan harus berupa sapaan yang santai, diikuti dengan daftar perintah di atas, diakhiri dengan instruksi cara melihat detail perintah. Gunakan Markdown WhatsApp (tebal *teks*). Jangan menggunakan kode blok. wajib buat format yang menarik dengan emoji, dan gunakan format styleing font whatsapp, untuk menebalkan hanya gunakan satu bintang (*) di awal dan akhir teks yang ingin ditebalkan, gunakan ( - ) untuk membuat list, dan gunakan (━━━━━━━━━━━━━━━━━━━━) untuk membuat garis pemisah. PALING PENTING tulis '> [HELP]' di baris pertama balasan mu.`;
 
     const geminiHelpResponse = await getGeminiResponse(bot, geminiPrompt);
 
