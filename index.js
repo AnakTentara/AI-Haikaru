@@ -8,6 +8,9 @@ import { GoogleGenAI } from '@google/genai';
 
 import { startServer } from './server.js';
 
+import dotenv from 'dotenv';
+dotenv.config();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -15,26 +18,15 @@ const config = JSON.parse(
     fs.readFileSync(join(__dirname, "config.json"), "utf8"),
 );
 
-function getChromiumPath() {
-    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-        return process.env.PUPPETEER_EXECUTABLE_PATH;
-    }
-
-    try {
-        return execSync("which chromium", { encoding: "utf8" }).trim();
-    } catch {
-        return undefined;
-    }
-}
-
 class WhatsAppBot {
     constructor() {
-        const chromiumPath = getChromiumPath();
 
         const clientConfig = {
             authStrategy: new LocalAuth(),
             puppeteer: {
-                args: [
+                headless: "new",
+                executablePath:	'/usr/bin/google-chrome-stable',
+		args: [
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
                     "--disable-dev-shm-usage",
@@ -42,14 +34,23 @@ class WhatsAppBot {
                     "--no-first-run",
                     "--no-zygote",
                     "--disable-gpu",
+		    '--disable-background-timer-throttling',
+           	    '--disable-backgrounding-occluded-windows',
+    		    '--disable-renderer-backgrounding',
+      		    '--disable-features=ImprovedCookieControls,LazyFrameLoading',
+         	    '--disable-extensions',
+         	    '--disable-web-security',
+        	    '--disable-features=AudioServiceOutOfProcess',
+            	    '--memory-pressure-off',
+         	    '--max_old_space_size=256'
                 ],
+		defaultViewport: null,
+        	ignoreHTTPSErrors: true,
+		handleSIGINT: false,
+    		handleSIGTERM: false,
+    		handleSIGHUP: false
             },
         };
-
-        if (chromiumPath) {
-            clientConfig.puppeteer.executablePath = chromiumPath;
-            console.log(`Menggunakan Chromium di: ${chromiumPath}`);
-        }
 
         this.client = new Client(clientConfig);
         this.commands = new Map();
