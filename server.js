@@ -1,5 +1,3 @@
-// buat UpTime xixixix, di UpTimeRobot.com
-//
 import express from "express";
 
 const app = express();

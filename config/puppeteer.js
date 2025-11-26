@@ -1,6 +1,6 @@
 export const puppeteerConfig = {
     headless: "new",
-    executablePath: '/usr/bin/google-chrome-stable',
+    executablePath: process.env.CHROME_PATH || undefined,
     args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",

@@ -1,4 +1,3 @@
-
 import { getGeminiChatResponse } from "../handlers/geminiProcessor.js";
 import { loadChatHistory, saveChatHistory } from "../handlers/dbHandler.js";
 
