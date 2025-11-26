@@ -74,6 +74,20 @@ export async function getGeminiChatResponse(
 							},
 							required: ["prompt"]
 						}
+					},
+					{
+						name: "perform_google_search",
+						description: "Lakukan pencarian Google untuk info terkini/real-time (berita, cuaca, info publik, fakta terbaru). Gunakan saat user tanya hal yang butuh akses internet.",
+						parameters: {
+							type: "OBJECT",
+							properties: {
+								query: {
+									type: "STRING",
+									description: "Query pencarian yang spesifik"
+								}
+							},
+							required: ["query"]
+						}
 					}
 				]
 			}
@@ -156,5 +170,33 @@ export async function getGeminiResponse(
 	} catch (error) {
 		console.error("Kesalahan panggilan Gemini API:", error);
 		return "Aduh, AI-Haikaru sedang sakit kepala! Coba ulangi sebentar lagi, ya.";
+	}
+}
+
+/**
+ * Helper function untuk melakukan Google Search via Gemini Grounding
+ * Ini dipanggil oleh functionHandler saat AI memilih 'perform_google_search'
+ */
+export async function getGroundedResponse(bot, query) {
+	if (!bot.geminiApi) {
+		throw new Error("Gemini API not initialized");
+	}
+
+	const generationConfig = {
+		temperature: 0.7,
+		tools: [{ googleSearch: {} }], // Hanya aktifkan Google Search
+	};
+
+	try {
+		const response = await bot.geminiApi.models.generateContent({
+			model: "gemini-2.5-flash",
+			contents: [{ role: "user", parts: [{ text: query }] }],
+			config: generationConfig,
+		});
+
+		return response.text.trim();
+	} catch (error) {
+		console.error("Grounded Search Error:", error);
+		return `Gagal melakukan pencarian: ${error.message}`;
 	}
 }

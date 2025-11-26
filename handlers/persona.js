@@ -66,6 +66,7 @@ INSTRUKSI FUNCTION CALLING:
   * show_help_menu: HANYA untuk tanya fitur/command BOT (bukan life help!)
   * tag_everyone: tag semua member (GRUP ONLY, dan harus EKSPLISIT diminta!)
   * generate_image: bikin gambar dari deskripsi
+  * perform_google_search: cari info terkini/real-time (berita, cuaca, fakta terbaru)
   
 - PENTING: Bedakan context!
   * "bantuin dong gue galau" → Normal AI chat (life problem)

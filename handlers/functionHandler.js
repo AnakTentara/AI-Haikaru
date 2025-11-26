@@ -195,3 +195,21 @@ export async function generate_image(prompt) {
         };
     }
 }
+/**
+ * Perform Google Search via Gemini Grounding Proxy
+ * Dipanggil saat user tanya info terkini/real-time
+ */
+export async function perform_google_search(bot, query) {
+    console.log(`🔍 Performing Google Search for: "${query}"`);
+
+    // Import helper secara dinamis untuk menghindari circular dependency saat init
+    const { getGroundedResponse } = await import('./geminiProcessor.js');
+
+    const searchResult = await getGroundedResponse(bot, query);
+
+    return {
+        query: query,
+        result: searchResult,
+        timestamp: new Date().toISOString()
+    };
+}

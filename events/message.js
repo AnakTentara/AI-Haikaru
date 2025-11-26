@@ -13,7 +13,8 @@ async function handleFunctionCalls(bot, message, chat, chatHistory, chatId, func
     check_ping,
     show_help_menu,
     tag_everyone,
-    generate_image
+    generate_image,
+    perform_google_search
   } = await import('../handlers/functionHandler.js');
 
   for (const call of functionCalls) {
@@ -95,6 +96,13 @@ async function handleFunctionCalls(bot, message, chat, chatHistory, chatId, func
             await message.reply(responseText);
             chatHistory.push({ role: "model", text: responseText });
           }
+          break;
+
+        case 'perform_google_search':
+          result = await perform_google_search(bot, call.args.query);
+          responseText = `🔎 *Hasil Pencarian Google:*\n\n${result.result}\n\n_Source: Google Search via Gemini_`;
+          await message.reply(responseText);
+          chatHistory.push({ role: "model", text: responseText });
           break;
       }
 
