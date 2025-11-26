@@ -8,12 +8,7 @@ export default {
   triggers: [".info"],
   async execute(message, args, bot) {
     const chat = await message.getChat();
-    let contact;
-    try {
-      contact = await message.getContact();
-    } catch {
-      contact = { number: message.from.replace("@c.us", "") };
-    }
+    const userNumber = message.author ? message.author.replace("@c.us", "") : message.from.replace("@c.us", "");
 
     const geminiPrompt =
       "Seseorang telah menjalankan perintah info bot. Berikan HANYA SATU kalimat singkat, ceria, dan sedikit sok tahu sebagai sapaan pembuka sebelum menyajikan data teknis bot.";
@@ -30,7 +25,7 @@ export default {
     info += `━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
     info += `👤 *INFO ANDA & CHAT INI:*\n`;
-    info += `📞 Nomor Anda: *${contact.number}*\n`;
+    info += `📞 Nomor Anda: *${userNumber}*\n`;
     info += `💬 Tipe Chat: *${chat.isGroup ? "Grup" : "Pribadi"}*\n`;
 
     if (chat.isGroup) {
