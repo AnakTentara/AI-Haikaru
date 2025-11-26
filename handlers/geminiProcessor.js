@@ -4,7 +4,7 @@
  * @param {string} userPrompt - Prompt spesifik dari pengguna/command.
  * @param {string} modelName - Model yang akan digunakan (mis. 'gemini-2.5-flash').
  * @returns {Promise<string>} - Teks balasan dari Gemini.
- */z
+ */
 
 export async function getGeminiChatResponse(
 	bot,
