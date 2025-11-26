@@ -20,13 +20,9 @@ export async function getGeminiChatResponse(
 	const systemInstruction = HAIKARU_PERSONA;
 
 	const generationConfig = {
-		temperature: 0.7,
+		temperature: 0.8,
 		systemInstruction: systemInstruction,
 		tools: [
-			{
-				googleSearch: {},
-				urlContext: {}
-			},
 			{
 				functionDeclarations: [
 					{
