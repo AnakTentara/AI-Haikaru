@@ -12,8 +12,6 @@ export async function getGeminiChatResponse(
 	bot,
 	chatHistory,
 	modelName = "gemini-2.5-flash",
-	imageBuffer = null,
-	mimeType = null
 ) {
 	if (!bot.geminiApi) {
 		return "Maaf, fitur AI sedang tidak aktif. Harap hubungi pengembang (Haikal).";
@@ -30,23 +28,24 @@ export async function getGeminiChatResponse(
 		}],
 	};
 
-	const contents = chatHistory.map((msg) => ({
-		role: msg.role,
-		parts: [{ text: msg.text }],
-	}));
+	const contents = chatHistory.map((msg) => {
+		const content = {
+			role: msg.role,
+			parts: [{ text: msg.text }],
+		};
 
-	// Jika ada gambar baru, tambahkan ke pesan terakhir (user)
-	if (imageBuffer && mimeType) {
-		const lastMessage = contents[contents.length - 1];
-		if (lastMessage && lastMessage.role === 'user') {
-			lastMessage.parts.push({
+		// Jika pesan memiliki data gambar yang tersimpan
+		if (msg.image && msg.image.data && msg.image.mimeType) {
+			content.parts.push({
 				inlineData: {
-					mimeType: mimeType,
-					data: imageBuffer.toString("base64")
+					mimeType: msg.image.mimeType,
+					data: msg.image.data
 				}
 			});
 		}
-	}
+
+		return content;
+	});
 
 	try {
 		const response = await bot.geminiApi.models.generateContent({

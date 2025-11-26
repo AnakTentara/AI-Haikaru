@@ -1,3 +1,4 @@
+
 import { getGeminiChatResponse } from "../handlers/geminiProcessor.js";
 import { loadChatHistory, saveChatHistory } from "../handlers/dbHandler.js";
 
@@ -94,19 +95,19 @@ export default {
         });
 
         const formattedUserMessage = `[${timeString}] [${senderIdentifier}]: ${userText}`;
-        chatHistory.push({ role: "user", text: formattedUserMessage });
+
+        const newMessage = { role: "user", text: formattedUserMessage };
 
         // --- IMAGE HANDLING LOGIC ---
-        let imageBuffer = null;
-        let mimeType = null;
-
         if (message.hasMedia) {
           try {
             const media = await message.downloadMedia();
             if (media && media.mimetype.startsWith("image/")) {
-              imageBuffer = Buffer.from(media.data, "base64");
-              mimeType = media.mimetype;
-              console.log("📸 Gambar diterima dari user.");
+              newMessage.image = {
+                mimeType: media.mimetype,
+                data: media.data
+              };
+              console.log("📸 Gambar diterima dari user & disimpan ke history.");
             }
           } catch (err) {
             console.error("Gagal download media:", err);
@@ -117,9 +118,11 @@ export default {
             if (quotedMsg.hasMedia) {
               const media = await quotedMsg.downloadMedia();
               if (media && media.mimetype.startsWith("image/")) {
-                imageBuffer = Buffer.from(media.data, "base64");
-                mimeType = media.mimetype;
-                console.log("📸 Gambar diterima dari quoted message.");
+                newMessage.image = {
+                  mimeType: media.mimetype,
+                  data: media.data
+                };
+                console.log("📸 Gambar diterima dari quoted message & disimpan ke history.");
               }
             }
           } catch (err) {
@@ -127,7 +130,9 @@ export default {
           }
         }
 
-        const aiResponse = await getGeminiChatResponse(bot, chatHistory, "gemini-2.5-flash", imageBuffer, mimeType);
+        chatHistory.push(newMessage);
+
+        const aiResponse = await getGeminiChatResponse(bot, chatHistory, "gemini-2.5-flash");
 
         // Bersihkan respons AI dari prefix yang tidak diinginkan (jika ada)
         const aggressivePrefixRegex = /^(\[.*?\]\s*(\[.*?\]:\s*)?)+/i;
