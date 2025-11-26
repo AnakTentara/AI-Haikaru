@@ -25,8 +25,8 @@ class WhatsAppBot {
             authStrategy: new LocalAuth(),
             puppeteer: {
                 headless: "new",
-                executablePath: '/usr/bin/google-chrome-stable',
-                args: [
+                executablePath:	'/usr/bin/google-chrome-stable',
+		args: [
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
                     "--disable-dev-shm-usage",
@@ -34,21 +34,21 @@ class WhatsAppBot {
                     "--no-first-run",
                     "--no-zygote",
                     "--disable-gpu",
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
-                    '--disable-features=ImprovedCookieControls,LazyFrameLoading',
-                    '--disable-extensions',
-                    '--disable-web-security',
-                    '--disable-features=AudioServiceOutOfProcess',
-                    '--memory-pressure-off',
-                    '--max_old_space_size=256'
+		    '--disable-background-timer-throttling',
+           	    '--disable-backgrounding-occluded-windows',
+    		    '--disable-renderer-backgrounding',
+      		    '--disable-features=ImprovedCookieControls,LazyFrameLoading',
+         	    '--disable-extensions',
+         	    '--disable-web-security',
+        	    '--disable-features=AudioServiceOutOfProcess',
+            	    '--memory-pressure-off',
+         	    '--max_old_space_size=256'
                 ],
-                defaultViewport: null,
-                ignoreHTTPSErrors: true,
-                handleSIGINT: false,
-                handleSIGTERM: false,
-                handleSIGHUP: false
+		defaultViewport: null,
+        	ignoreHTTPSErrors: true,
+		handleSIGINT: false,
+    		handleSIGTERM: false,
+    		handleSIGHUP: false
             },
         };
 
@@ -57,12 +57,6 @@ class WhatsAppBot {
         this.events = new Map();
         this.prefix = config.prefix;
         this.config = config;
-
-        const tempDir = join(__dirname, 'temp');
-        if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true });
-            console.log('📁 Temp folder created for images.');
-        }
 
         if (process.env.GEMINI_API_KEY) {
             this.geminiApiKey = process.env.GEMINI_API_KEY;

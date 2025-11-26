@@ -4,16 +4,7 @@
  * @param {string} userPrompt - Prompt spesifik dari pengguna/command.
  * @param {string} modelName - Model yang akan digunakan (mis. 'gemini-2.5-flash').
  * @returns {Promise<string>} - Teks balasan dari Gemini.
- */
-
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fetch from 'node-fetch';
-import { MessageMedia } from 'whatsapp-web.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+ */z
 
 export async function getGeminiChatResponse(
 	bot,
@@ -28,8 +19,6 @@ export async function getGeminiChatResponse(
 JANGAN PERNAH bikin prefix pesan balasan kamu sendiri, ya. Nggak ada [HH:MM:SS], [AI-Haikaru], [Nama Kamu], atau apapun yang mirip di depan. Balas cuma teks murni aja, bro. Aku Haikaru, AI buatan Haikal yang nongkrong di WA sebagai temen curhat buat lo semua—dari milenial sampe gen Z yang lagi hectic. Aku cepet nangkep maksud lo, bisa bantu apa aja: dari gosip ringan, tugas sekolah, coding sampe fakta random yang bikin lo "oh gitu". Kita lagi di grup atau chat pribadi, dan pesan dari user biasanya diawali [HH:MM:SS] [Nama/Nomor], tapi aku nggak boleh ikutan bikin gitu buat balas.\n
 \n
 INSTRUKSI UTAMA: Balas cuma yang nyambung sama pesan terakhir yang ditujuin ke aku. Jangan rangkum chat lama-lama, jangan respon perintah bot (.help, .ping, @everyone) kecuali lo tanya langsung. Kalau sapaan doang, balas maksimal 2 kalimat biar nggak panjang. Fokus ke konteks sekarang, dan sesuain sama siapa yang lagi ngobrol.\n
-\n
-KALAU USER MINTA GAMBAR/IMAGE/GENERATE GAMBAR (misal "buat gambar kucing" atau "generate image robot"), JANGAN BALAS TEXT PANJANG. Cukup refine prompt gambar jadi deskripsi detail & artistik (1-2 kalimat, max 100 kata), lalu bilang "[GAMBAR_PROMPT: deskripsi lengkap]". Bot akan handle generate pake Imagen 4. Contoh: User: "buat gambar kucing lucu". Kamu: "Kucing fluffy Persia berwarna oranye main bola wol di taman musim semi, gaya kartun Pixar yang cerah dan menggemaskan. [GAMBAR_PROMPT: ...]". Kalau bukan request gambar, balas normal.
 \n
 Gaya obrolan aku:\n
 - Gaul, asik, humoris tapi nggak maksa—kayak temen yang bisa lo andelin tanpa drama.\n
@@ -98,58 +87,13 @@ Instruksi:\n
 		});
 
 		if (!response.text) {
-			return console.log("Respons AI kosong.");
+			return "Ups, respons AI kosong. Coba tanyakan lagi.";
 		}
 		return response.text.trim();
 	} catch (error) {
 		console.error("Kesalahan panggilan Gemini Chat API:", error);
 		return "Aduh, AI-Haikaru sedang gagal mengingat. Ada apa ya? Coba tanyakan lagi.";
 	}
-}
-
-export async function generateImageWithImagen(bot, imagePrompt, modelName = "imagen-4.0-generate-001") {
-  if (!bot.geminiApi) {
-    throw new Error("Gemini API tidak diinisialisasi untuk Imagen.");
-  }
-
-  const config = {
-    numberOfImages: 1,
-    imageSize: "1024x1024",
-    aspectRatio: "1:1",
-	personGeneration: allow_all,
-    safetyFilters: {
-      hate: "block_none",
-      harassment: "block_none",
-      sexuallyExplicit: "block_none",
-      dangerous: "block_none",
-    },
-  };
-
-  try {
-    console.log(`🖼️ Generating image with Imagen 4: ${imagePrompt}`);
-    const response = await bot.geminiApi.models.generateImages({
-      model: modelName,
-      prompt: imagePrompt,
-      config: config,
-    });
-
-    if (!response.generatedImages || response.generatedImages.length === 0) {
-      throw new Error("No images generated.");
-    }
-
-    const imageData = response.generatedImages[0].image;  // Base64 atau bytes
-    const buffer = Buffer.from(imageData, 'base64');  // Asumsi base64
-
-    // Simpan temp file
-    const tempPath = path.join(__dirname, `../temp/generated_${Date.now()}.png`);
-    fs.writeFileSync(tempPath, buffer);
-
-    console.log(`✅ Image saved to: ${tempPath}`);
-    return tempPath;  // Return path buat dikirim ke WA
-  } catch (error) {
-    console.error("❌ Error generating image with Imagen 4:", error);
-    throw error;
-  }
 }
 
 export async function getGeminiResponse(

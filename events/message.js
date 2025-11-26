@@ -1,4 +1,4 @@
-import { getGeminiChatResponse, generateImageWithImagen } from "../handlers/geminiProcessor.js";
+import { getGeminiChatResponse } from "../handlers/geminiProcessor.js";
 import { loadChatHistory, saveChatHistory } from "../handlers/dbHandler.js";
 
 export default {
@@ -60,8 +60,11 @@ export default {
 
     // --- BLOCK 3: AI Logic (Modified) ---
     const botIdFromSession = bot.client.info.wid.user;
+
+    // [UBAH DI SINI] Menggunakan Array untuk menampung lebih dari satu ID
     const targetUserIds = ["263801807044691", "628816197519"];
 
+    // [UBAH DI SINI] Cek apakah salah satu dari ID di atas di-mention
     const isMentioned = message.mentionedIds.some((mentionedId) =>
       targetUserIds.some((targetId) => mentionedId.startsWith(targetId))
     );
@@ -70,11 +73,11 @@ export default {
     const isPrivateChat = !chat.isGroup;
 
     let isReplyToBot = false;
-
+    
     if (message.hasQuotedMsg) {
       const quotedMsg = await message.getQuotedMessage();
       if (
-        quotedMsg.fromMe ||
+        quotedMsg.fromMe || 
         (quotedMsg.author && quotedMsg.author.startsWith(botIdFromSession)) ||
         (quotedMsg.from && quotedMsg.from.startsWith(botIdFromSession))
       ) {
@@ -129,35 +132,6 @@ export default {
         chatHistory.push({ role: "user", text: formattedUserMessage });
 
         const aiResponse = await getGeminiChatResponse(bot, chatHistory);
-
-        const gambarMatch = aiResponse.match(/\[GAMBAR_PROMPT:\s*(.*?)\]/i);
-        if (gambarMatch) {
-          const imagePrompt = gambarMatch[1].trim();
-          const cleanedText = aiResponse.replace(/\[GAMBAR_PROMPT:.*?\]/i, '').trim();
-          try {
-            // Generate image
-            const imagePath = await generateImageWithImagen(bot, imagePrompt);
-
-            // Kirim image + caption (kalau ada text)
-            const caption = cleanedText || `🖼️ Gambar buat lo: "${imagePrompt}"`;
-            const media = await MessageMedia.fromFilePath(imagePath);  // Import MessageMedia dari whatsapp-web.js
-            await message.reply(media, undefined, { caption });
-
-            // Cleanup temp file
-            fs.unlinkSync(imagePath);
-
-            // Update history dengan prompt gambar
-            chatHistory.push({ role: "model", text: `[Generated image for: ${imagePrompt}]` });
-            await saveChatHistory(chatId, chatHistory);
-
-            console.log(`🖼️ Image sent for prompt: ${imagePrompt}`);
-            return;  // Stop di sini, jangan reply text lagi
-          } catch (imgError) {
-            console.error("❌ Image generation failed:", imgError);
-            await message.reply("Waduh, gagal bikin gambar nih 😭. Coba deskripsi yang lebih detail yuk! Error: " + imgError.message);
-            return;
-          }
-        }
 
         const aggressivePrefixRegex = /^(\[.*?\]\s*(\[.*?\]:\s*)?)+/i;
 
