@@ -1,9 +1,9 @@
 /**
- * Fungsi untuk memproses prompt menggunakan Gemini API.
+ * Fungsi untuk memproses prompt menggunakan Gemini API dengan Function Calling support.
  * @param {object} bot - Instance bot utama yang berisi bot.geminiApi.
- * @param {string} userPrompt - Prompt spesifik dari pengguna/command.
+ * @param {array} chatHistory - Riwayat chat untuk context.
  * @param {string} modelName - Model yang akan digunakan (mis. 'gemini-2.5-flash').
- * @returns {Promise<string>} - Teks balasan dari Gemini.
+ * @returns {Promise<string|object>} - Teks balasan atau function call object.
  */
 
 import { HAIKARU_PERSONA, HELPER_PERSONA } from './persona.js';
@@ -22,10 +22,66 @@ export async function getGeminiChatResponse(
 	const generationConfig = {
 		temperature: 0.7,
 		systemInstruction: systemInstruction,
-		tools: [{
-			googleSearch: {},
-			urlContext: {}
-		}],
+		tools: [
+			{
+				googleSearch: {},
+				urlContext: {}
+			},
+			{
+				functionDeclarations: [
+					{
+						name: "get_bot_info",
+						description: "Dapatkan informasi tentang bot, statistik, dan info user/chat saat ini. Gunakan saat user tanya tentang bot, nomor mereka, info grup, atau statistik.",
+						parameters: {
+							type: "OBJECT",
+							properties: {},
+							required: []
+						}
+					},
+					{
+						name: "check_ping",
+						description: "Cek responsivitas dan latency bot. Gunakan saat user tanya 'masih hidup?', 'cek ping', 'cepat ga?', 'bot responsif?', atau sejenisnya.",
+						parameters: {
+							type: "OBJECT",
+							properties: {},
+							required: []
+						}
+					},
+					{
+						name: "show_help_menu",
+						description: "Tampilkan daftar fitur dan kemampuan BOT. HANYA gunakan saat user EKSPLISIT tanya tentang fitur/command/kapabilitas bot (e.g., 'fitur apa aja?', 'bisa ngapain aja?', 'tunjukin command'). JANGAN gunakan untuk request 'bantuin dong' yang generic (itu normal chat).",
+						parameters: {
+							type: "OBJECT",
+							properties: {},
+							required: []
+						}
+					},
+					{
+						name: "tag_everyone",
+						description: "Tag/mention semua member di grup. HANYA gunakan di grup, dan saat user EKSPLISIT minta tag/panggil semua orang (e.g., 'tag semua', 'mention all', 'panggil semua member'). JANGAN gunakan untuk greeting biasa.",
+						parameters: {
+							type: "OBJECT",
+							properties: {},
+							required: []
+						}
+					},
+					{
+						name: "generate_image",
+						description: "Generate/buat gambar dari deskripsi text. Gunakan saat user minta buatkan/bikinin/generate gambar.",
+						parameters: {
+							type: "OBJECT",
+							properties: {
+								prompt: {
+									type: "STRING",
+									description: "Deskripsi gambar dalam bahasa Inggris (translate dari request user jika perlu)"
+								}
+							},
+							required: ["prompt"]
+						}
+					}
+				]
+			}
+		],
 	};
 
 	const contents = chatHistory.map((msg) => {
@@ -54,6 +110,18 @@ export async function getGeminiChatResponse(
 			config: generationConfig,
 		});
 
+		// Check if AI wants to call function(s)
+		if (response.functionCalls && response.functionCalls.length > 0) {
+			console.log(`🔧 AI calling ${response.functionCalls.length} function(s):`,
+				response.functionCalls.map(fc => fc.name).join(', '));
+
+			return {
+				type: 'function_call',
+				functionCalls: response.functionCalls
+			};
+		}
+
+		// Normal text response
 		if (!response.text) {
 			return "Ups, respons AI kosong. Coba tanyakan lagi.";
 		}

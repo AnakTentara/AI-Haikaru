@@ -127,38 +127,44 @@ npm start
 
 ## 📱 Penggunaan
 
-### **Commands dengan Prefix** (default: `.`)
+### **Natural Language Commands (New! 🚀)**
 
-| Command | Deskripsi | Contoh |
-|---------|-----------|--------|
-| `.ping` | Cek responsivitas & latency bot | `.ping` |
-| `.help` | Tampilkan menu bantuan | `.help` atau `.help ping` |
-| `.info` | Info statistik bot & chat | `.info` |
+Bot sekarang bisa mengerti perintah bahasa manusia! Tidak perlu hafal prefix.
 
-### **Trigger Commands** (tanpa prefix)
+| Perintah Natural | Fungsi | Contoh |
+|------------------|--------|--------|
+| "Info dong" | Cek info bot & user | "Haikaru, info dong" |
+| "Cek ping" | Cek responsivitas | "Bot masih hidup?" |
+| "Fitur apa aja?" | Tampilkan menu bantuan | "Bisa ngapain aja?" |
+| "Tag semua" | Tag semua member (Grup) | "Tag semua orang dong" |
+| "Buatin gambar..." | Generate gambar AI | "Buatin gambar kucing terbang" |
 
-| Trigger | Deskripsi | Cara Pakai |
-|---------|-----------|------------|
-| `@everyone` | Tag semua member di grup | Ketik `@everyone` di grup |
+### **Commands dengan Prefix** (Legacy Mode)
+Masih bisa digunakan sebagai fallback:
+| Command | Deskripsi |
+|---------|-----------|
+| `.ping` | Cek responsivitas |
+| `.help` | Menu bantuan |
+| `.info` | Info statistik |
 
 ### **AI Chat**
 
 Bot akan **otomatis merespon** ketika:
 - ✅ Chat **pribadi** (semua pesan)
-- ✅ Di-**mention** di grup (`@628816197519` atau `@263801807044691`)
+- ✅ Di-**mention** di grup (`@628816197519`)
 - ✅ **Reply** ke pesan bot
 
 **Contoh percakapan:**
 
 ```
 User: Haikaru, jelasin dong apa itu AI?
-Bot: Woi! AI itu singkatan dari Artificial Intelligence, intinya komputer 
-     yang bisa "mikir" kayak manusia gitu deh. Bisa belajar, ngobrol, 
-     sampe ngerjain tugas lo :v Gue sendiri salah satunya! 😎🔥
+Bot: Woi! AI itu singkatan dari Artificial Intelligence... 😎🔥
 
 User: [kirim foto kucing] ini binatang apa?
-Bot: Wahh itu kucing lucu banget bro 😭 Kayaknya jenis tabby gitu deh, 
-     gemesin parah! 🐱
+Bot: Wahh itu kucing lucu banget bro 😭 🐱
+
+User: Buatin gambar pemandangan gunung
+Bot: Nih gambarnya udah jadi! 🎨✨ [Mengirim gambar]
 ```
 
 ---
