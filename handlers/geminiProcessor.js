@@ -253,7 +253,11 @@ Output WAJIB JSON format:
 			config: generationConfig,
 		});
 
-		const responseText = response.text();
+		if (!response.text) {
+			return null;
+		}
+
+		const responseText = response.text;
 		const result = JSON.parse(responseText);
 		return result;
 	} catch (error) {
