@@ -8,7 +8,7 @@ export default {
   triggers: [".info"],
   async execute(message, args, bot) {
     const chat = await message.getChat();
-    const userNumber = message.author ? message.author.replace("@c.us", "") : message.from.replace("@c.us", "");
+    const userNumber = await message.getContact();
 
     const geminiPrompt =
       "Seseorang telah menjalankan perintah info bot. Berikan HANYA SATU kalimat singkat, ceria, dan sedikit sok tahu sebagai sapaan pembuka sebelum menyajikan data teknis bot.";
