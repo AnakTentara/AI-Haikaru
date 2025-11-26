@@ -32,19 +32,22 @@ export default {
       return message.reply(reply);
     }
 
-    await message.reply(
-      "⏳ Tunggu sebentar, AI-Haikaru sedang menyiapkan daftar perintah paling keren untukmu...",
-    );
+    const geminiPrompt = "Seseorang telah menjalankan perintah help. Berikan HANYA SATU kalimat singkat, ceria, dan sedikit sok tahu sebagai sapaan pembuka sebelum menyajikan daftar perintah.";
+    const aiSalutation = await getGeminiResponse(bot, geminiPrompt);
 
-    let commandList = "";
-    bot.commands.forEach((command) => {
-      commandList += ` - ${command.name}: ${command.description || "Tidak ada deskripsi"}\n`;
-    });
+    let helpMessage = `${aiSalutation}\n\n`;
+    helpMessage += `╭───「 *MENU UTAMA* 」\n`;
+    helpMessage += `│\n`;
+    helpMessage += `│ 🛠️ *UTILITY*\n`;
+    helpMessage += `│ • *.help* - Tampilkan menu ini\n`;
+    helpMessage += `│ • *.info* - Info statistik bot\n`;
+    helpMessage += `│ • *.ping* - Cek kecepatan respon\n`;
+    helpMessage += `│\n`;
+    helpMessage += `│ 👥 *GROUP*\n`;
+    helpMessage += `│ • *@everyone* - Tag semua member\n`;
+    helpMessage += `│\n`;
+    helpMessage += `╰──────────────────`;
 
-    const geminiPrompt = `Daftar perintah bot ini adalah:\n\n${commandList}\n\nBerikan balasan untuk perintah '.help'. Balasan harus berupa sapaan yang santai, diikuti dengan daftar perintah di atas, diakhiri dengan instruksi cara melihat detail perintah. Gunakan Markdown WhatsApp (tebal *teks*). Jangan menggunakan kode blok. wajib buat format yang menarik dengan emoji, dan gunakan format styleing font whatsapp, untuk menebalkan hanya gunakan satu bintang (*) di awal dan akhir teks yang ingin ditebalkan, gunakan ( - ) untuk membuat list, dan gunakan (━━━━━━━━━━━━━━━━━━━━) untuk membuat garis pemisah. PALING PENTING tulis '> [HELP]' di baris pertama balasan mu.`;
-
-    const geminiHelpResponse = await getGeminiResponse(bot, geminiPrompt);
-
-    await message.reply(geminiHelpResponse);
+    await message.reply(helpMessage);
   },
 };
