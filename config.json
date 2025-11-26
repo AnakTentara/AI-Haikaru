@@ -1,6 +1,7 @@
 {
   "prefix": ".",
   "botName": "AI-Haikaru",
+  "version": "1.7.0",
   "language": "id",
   "features": {
     "enableLogging": true,

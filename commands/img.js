@@ -40,7 +40,8 @@ export default {
             }
         } catch (error) {
             console.error("Error executing .img command:", error);
-            await message.reply("Terjadi kesalahan saat membuat gambar.");
+            console.error("Full error stack:", error.stack);
+            await message.reply(`Terjadi kesalahan saat membuat gambar:\n${error.message}`);
         }
     }
 };
