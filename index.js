@@ -3,7 +3,6 @@ const { Client, LocalAuth } = pkg;
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import fs from "fs";
-import { execSync } from "child_process";
 import { GoogleGenAI } from '@google/genai';
 
 import { startServer } from './server.js';
@@ -72,24 +71,32 @@ class WhatsAppBot {
                 .readdirSync(commandsPath)
                 .filter((file) => file.endsWith(".js"));
 
+            console.log(`Ditemukan ${commandFiles.length} file di folder commands: ${commandFiles.join(", ")}`);
+
             for (const file of commandFiles) {
                 try {
                     const filePath = join(commandsPath, file);
-                    const command = await import(`file://${filePath}`);
+                    const commandModule = await import(`file://${filePath}?update=${Date.now()}`);
 
-                    if (command.default && command.default.name) {
-                        this.commands.set(command.default.name, command.default);
-                        console.log(`✓ Perintah dimuat: ${command.default.name}`);
+                    const command = commandModule.default;
+
+                    if (command && typeof command === 'object' && command.name) {
+                        this.commands.set(command.name.toLowerCase(), command);
+                        console.log(`✓ Perintah dimuat: ${command.name} ← dari ${file}`);
+                    } else {
+                        console.error(`File ${file} tidak memiliki export default yang valid!`);
                     }
                 } catch (error) {
-                    console.error(`❌ Gagal memuat perintah ${file}:`, error.message);
+                    console.error(`GAGAL memuat ${file}:`, error.message);
+                    console.error(error.stack);
                 }
             }
+
+            console.log(`Total perintah berhasil dimuat: ${this.commands.size}`);
         } catch (error) {
-            console.error("❌ Gagal membaca direktori perintah:", error.message);
+            console.error("Gagal membaca direktori perintah:", error.message);
         }
     }
-
     async loadEvents() {
         const eventsPath = join(__dirname, "events");
 
