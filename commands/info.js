@@ -10,19 +10,38 @@ export default {
   async execute(message, args, bot) {
   const chat = await message.getChat();
 
-  let userNumber;
+  let senderId;
   if (chat.isGroup) {
-    userNumber = message.author?.split("@")[0];
+    senderId = message.author;
   } else {
-    userNumber = message.from.split("@")[0];
+    senderId = message.from;
   }
 
-  let userName = "Pengguna";
+  let userNumber = senderId.split("@")[0];
+  try {
+    const lidPhone = await bot.client.pupPage.evaluate((id) => {
+      if (id.includes('@lid')) {
+        const wid = window.Store.WidFactory.createWid(id);
+        return window.Store.LidUtils ? window.Store.LidUtils.getPhoneNumber(wid) : wid._serialized.split("@")[0];
+      }
+      return id.split("@")[0];
+    }, senderId);
+
+    userNumber = lidPhone.replace(/[^0-9]/g, '');
+  } catch (e) {
+    console.error('Gagal convert LID:', e);
+    try {
+      const contact = await message.getContact();
+      userNumber = contact.number || userNumber;
+    } catch {}
+  }
+
+  let userName = message._data.notifyName || "Pengguna";
   try {
     const contact = await message.getContact();
-    userName = contact.pushname || contact.name || message._data.notifyName || "Pengguna";
+    userName = contact.pushname || contact.name || userName;
   } catch (e) {
-    // ignore error
+    // Ignore error
   }
 
   const geminiPrompt = "Seseorang telah menjalankan perintah info bot. Berikan HANYA SATU kalimat singkat, ceria, dan sedikit sok tahu sebagai sapaan pembuka sebelum menyajikan data teknis bot.";
