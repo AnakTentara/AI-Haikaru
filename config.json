@@ -9,5 +9,9 @@
   "messages": {
     "errorExecutingCommand": "❌ Terjadi kesalahan saat menjalankan perintah tersebut.",
     "commandNotFound": "❌ Perintah tidak ditemukan."
-  }
+  },
+  "targetUserIds": [
+    "263801807044691",
+    "628816197519"
+  ]
 }

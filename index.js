@@ -19,36 +19,9 @@ const config = JSON.parse(
 
 class WhatsAppBot {
     constructor() {
-
         const clientConfig = {
             authStrategy: new LocalAuth(),
-            puppeteer: {
-                headless: "new",
-                executablePath:	'/usr/bin/google-chrome-stable',
-		args: [
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-accelerated-2d-canvas",
-                    "--no-first-run",
-                    "--no-zygote",
-                    "--disable-gpu",
-		    '--disable-background-timer-throttling',
-           	    '--disable-backgrounding-occluded-windows',
-    		    '--disable-renderer-backgrounding',
-      		    '--disable-features=ImprovedCookieControls,LazyFrameLoading',
-         	    '--disable-extensions',
-         	    '--disable-web-security',
-        	    '--disable-features=AudioServiceOutOfProcess',
-            	    '--memory-pressure-off',
-         	    '--max_old_space_size=256'
-                ],
-		defaultViewport: null,
-        	ignoreHTTPSErrors: true,
-		handleSIGINT: false,
-    		handleSIGTERM: false,
-    		handleSIGHUP: false
-            },
+            puppeteer: puppeteerConfig,
         };
 
         this.client = new Client(clientConfig);

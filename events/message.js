@@ -5,27 +5,24 @@ export default {
   name: "message",
   once: false,
   async execute(bot, message) {
+    const { body, from, id, mentionedIds, hasQuotedMsg } = message;
+    const { prefix, config } = bot;
+
     // --- BLOCK 1: Handle Command Prefix ---
-    if (message.body.toLowerCase().trim().startsWith(bot.prefix)) {
-      if (message.from === "status@broadcast") return;
+    if (body.toLowerCase().trim().startsWith(prefix)) {
+      if (from === "status@broadcast") return;
 
-      const args = message.body.slice(bot.prefix.length).trim().split(/ +/);
+      const args = body.slice(prefix.length).trim().split(/ +/);
       const commandName = args.shift().toLowerCase();
-
       const command = bot.commands.get(commandName);
 
       if (command) {
         try {
-          console.log(
-            `🔵 Perintah: ${commandName} | Dari: ${message.from} | Chat: ${message.id.remote}`,
-          );
+          console.log(`🔵 Perintah: ${commandName} | Dari: ${from} | Chat: ${id.remote}`);
           await command.execute(message, args, bot);
         } catch (error) {
-          console.error(
-            `❌ Kesalahan saat menjalankan perintah ${commandName}:`,
-            error,
-          );
-          await message.reply(bot.config.messages.errorExecutingCommand);
+          console.error(`❌ Kesalahan saat menjalankan perintah ${commandName}:`, error);
+          await message.reply(config.messages.errorExecutingCommand);
         }
       }
       return;
@@ -35,37 +32,25 @@ export default {
     for (const [name, command] of bot.commands) {
       if (
         command.prefixRequired === false &&
-        command.triggers &&
-        Array.isArray(command.triggers) &&
-        command.triggers.some((trigger) =>
-          message.body.toLowerCase().includes(trigger.toLowerCase()),
-        )
+        command.triggers?.some((trigger) => body.toLowerCase().includes(trigger.toLowerCase()))
       ) {
         try {
-          console.log(
-            `🔵 Perintah: ${name} | Dari: ${message.from} | Chat: ${message.id.remote}`,
-          );
+          console.log(`🔵 Perintah: ${name} | Dari: ${from} | Chat: ${id.remote}`);
           await command.execute(message, [], bot);
-          break;
+          return; // Exit after executing trigger command
         } catch (error) {
-          console.error(
-            `❌ Kesalahan saat menjalankan perintah ${name}:`,
-            error,
-          );
-          await message.reply(bot.config.messages.errorExecutingCommand);
+          console.error(`❌ Kesalahan saat menjalankan perintah ${name}:`, error);
+          await message.reply(config.messages.errorExecutingCommand);
         }
-        return;
       }
     }
 
-    // --- BLOCK 3: AI Logic (Modified) ---
+    // --- BLOCK 3: AI Logic ---
     const botIdFromSession = bot.client.info.wid.user;
+    const targetUserIds = config.targetUserIds || [];
 
-    // [UBAH DI SINI] Menggunakan Array untuk menampung lebih dari satu ID
-    const targetUserIds = ["263801807044691", "628816197519"];
-
-    // [UBAH DI SINI] Cek apakah salah satu dari ID di atas di-mention
-    const isMentioned = message.mentionedIds.some((mentionedId) =>
+    // Cek apakah salah satu dari ID target di-mention
+    const isMentioned = mentionedIds.some((mentionedId) =>
       targetUserIds.some((targetId) => mentionedId.startsWith(targetId))
     );
 
@@ -73,11 +58,10 @@ export default {
     const isPrivateChat = !chat.isGroup;
 
     let isReplyToBot = false;
-    
-    if (message.hasQuotedMsg) {
+    if (hasQuotedMsg) {
       const quotedMsg = await message.getQuotedMessage();
       if (
-        quotedMsg.fromMe || 
+        quotedMsg.fromMe ||
         (quotedMsg.author && quotedMsg.author.startsWith(botIdFromSession)) ||
         (quotedMsg.from && quotedMsg.from.startsWith(botIdFromSession))
       ) {
@@ -85,81 +69,51 @@ export default {
       }
     }
 
-    let debug = true;
-
-    if (debug) {
-      if (
-        chat.isGroup &&
-        message.body.length > 0 &&
-        message.body.includes("@")
-      ) {
-        console.log(`[DEBUG AI] DEBUG MODE AKTIF`);
-        console.log(`[DEBUG AI] Pesan diterima di grup: ${message.body}`);
-        console.log(`[DEBUG AI] ID TARGET LIST: ${targetUserIds.join(", ")}`);
-        console.log(`[DEBUG AI] ID Bot (Sesi Aktif): ${botIdFromSession}`);
-        console.log(
-          `[DEBUG AI] message.mentionedIds (Ditemukan): ${message.mentionedIds.join(", ")}`,
-        );
-        console.log(`[DEBUG AI] Hasil Cek isMentioned: ${isMentioned}`);
-      }
+    // Debug Log (Simplified)
+    if (chat.isGroup && body.includes("@")) {
+      // console.log(`[DEBUG AI] Group Mention Check: ${isMentioned}`);
     }
 
     if (isPrivateChat || isMentioned || isReplyToBot) {
       try {
         const chatId = chat.id._serialized;
+        const chatHistory = await loadChatHistory(chatId);
 
-        let chatHistory = await loadChatHistory(chatId);
+        const senderWID = message.author || from;
+        const senderIdentifier = message._data.notifyName || senderWID.split("@")[0];
 
-        const senderWID = message.author || message.from;
-        let senderIdentifier =
-          message._data.notifyName || senderWID.split("@")[0];
-
-        // Hasil regex akan menjadi: /@(263801807044691|628816197519)/g
+        // Hapus mention dari pesan user agar bersih
         const mentionRegex = new RegExp(`@(${targetUserIds.join("|")})`, "g");
-        let userText = message.body.replace(mentionRegex, "").trim();
+        const userText = body.replace(mentionRegex, "").trim();
 
-        const date = new Date(message.timestamp * 1000);
-        const timeString = date.toLocaleTimeString("id-ID", {
+        const timeString = new Date(message.timestamp * 1000).toLocaleTimeString("id-ID", {
           hour: "2-digit",
           minute: "2-digit",
           second: "2-digit",
           timeZone: "Asia/Jakarta",
         });
-        const timestampPrefix = `[${timeString}]`;
 
-        const formattedUserMessage = `${timestampPrefix} [${senderIdentifier}]: ${userText}`;
-
+        const formattedUserMessage = `[${timeString}] [${senderIdentifier}]: ${userText}`;
         chatHistory.push({ role: "user", text: formattedUserMessage });
 
         const aiResponse = await getGeminiChatResponse(bot, chatHistory);
 
+        // Bersihkan respons AI dari prefix yang tidak diinginkan (jika ada)
         const aggressivePrefixRegex = /^(\[.*?\]\s*(\[.*?\]:\s*)?)+/i;
+        let cleanedResponse = aiResponse.replace(aggressivePrefixRegex, "").trim();
 
-        let cleanedResponse = aiResponse;
-
-        cleanedResponse = cleanedResponse
-          .replace(aggressivePrefixRegex, "")
-          .trim();
-        cleanedResponse = cleanedResponse
-          .replace(aggressivePrefixRegex, "")
-          .trim();
-
-        if (cleanedResponse.length === 0) {
-          cleanedResponse = aiResponse.trim();
-        }
+        if (!cleanedResponse) cleanedResponse = aiResponse.trim();
 
         const finalResponse = await message.reply(cleanedResponse);
 
         chatHistory.push({ role: "model", text: finalResponse.body });
-
         await saveChatHistory(chatId, chatHistory);
+
         console.log(`\n${formattedUserMessage}`);
         console.log("🟢 AI Chat Response:\n", cleanedResponse);
       } catch (error) {
         console.error("❌ Kesalahan saat menjalankan AI Chat:", error);
-        await message.reply(
-          "Maaf, AI-Haikaru mengalami kendala saat memproses riwayat chat. (Cek koneksi MongoDB).",
-        );
+        // await message.reply("Maaf, AI-Haikaru sedang gangguan."); // Optional error reply
       }
     }
   },
