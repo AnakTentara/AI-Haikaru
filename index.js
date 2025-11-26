@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import fs from "fs";
 import { GoogleGenAI } from '@google/genai';
-import puppeteerConfig from './puppeteerConfig.js';
+import { puppeteerConfig } from './config/puppeteer.js';
 import { startServer } from './server.js';
 
 import dotenv from 'dotenv';
