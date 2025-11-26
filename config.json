@@ -4,7 +4,7 @@
   "language": "id",
   "features": {
     "enableLogging": true,
-    "enableGemini": false
+    "enableGemini": true
   },
   "messages": {
     "errorExecutingCommand": "❌ Terjadi kesalahan saat menjalankan perintah tersebut.",
