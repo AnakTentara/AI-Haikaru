@@ -194,9 +194,70 @@ export async function getGroundedResponse(bot, query) {
 			config: generationConfig,
 		});
 
+		if (!response.text) {
+			console.warn("Grounded Search: Respons text dari Gemini kosong.");
+			return "Ups, hasil pencarian kosong atau tidak ditemukan."; // Pesan yang lebih user-friendly
+		}
+
 		return response.text.trim();
 	} catch (error) {
 		console.error("Grounded Search Error:", error);
 		return `Gagal melakukan pencarian: ${error.message}`;
+	}
+}
+
+/**
+ * Menganalisis history chat untuk menentukan reaksi emoji yang tepat.
+ * Menggunakan mode JSON untuk output terstruktur.
+ */
+export async function analyzeEmojiReaction(bot, chatHistory) {
+	if (!bot.geminiApi) return null;
+
+	// Ambil 20 pesan terakhir untuk konteks reaksi
+	const recentHistory = chatHistory.slice(-20);
+
+	const systemInstruction = `
+Kamu adalah AI yang bertugas memberikan reaksi emoji terhadap pesan terakhir dalam percakapan.
+Tugasmu:
+1. Analisis alur percakapan dari history yang diberikan.
+2. Fokus pada pesan TERAKHIR dari user.
+3. Tentukan emoji yang paling cocok untuk mereaksikan pesan tersebut.
+4. Tentukan tingkat urgensi reaksi:
+   - "wajib": Sangat emosional (sedih, marah, kaget, sangat lucu) atau perubahan topik drastis.
+   - "penting": Relevan dan menambah nilai percakapan.
+   - "opsional": Reaksi standar, tidak terlalu mendesak.
+   - "jangan_bereaksi": Topik sensitif, duka cita serius, atau tidak perlu reaksi.
+
+Output WAJIB JSON format:
+{
+  "emoji": "string (1 emoji saja)",
+  "urgensi": "wajib" | "penting" | "opsional" | "jangan_bereaksi"
+}
+`;
+
+	const generationConfig = {
+		temperature: 1.0, // Sedikit lebih kreatif untuk variasi emoji
+		responseMimeType: "application/json",
+		systemInstruction: systemInstruction,
+	};
+
+	const contents = recentHistory.map((msg) => ({
+		role: msg.role === "user" ? "user" : "model",
+		parts: [{ text: msg.text }],
+	}));
+
+	try {
+		const response = await bot.geminiApi.models.generateContent({
+			model: "gemini-2.5-flash", // Gunakan model cepat
+			contents: contents,
+			config: generationConfig,
+		});
+
+		const responseText = response.text();
+		const result = JSON.parse(responseText);
+		return result;
+	} catch (error) {
+		console.error("❌ Gagal menganalisis reaksi emoji:", error);
+		return null;
 	}
 }

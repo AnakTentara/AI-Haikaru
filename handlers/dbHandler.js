@@ -1,6 +1,6 @@
 import { MongoClient } from 'mongodb';
 
-const uri = process.env.MONGODB_URI; 
+const uri = process.env.MONGODB_URI;
 if (!uri) {
 	console.error("❌ MONGODB_URI tidak ditemukan! Harap set environment variable.");
 }
@@ -50,10 +50,36 @@ export async function saveChatHistory(chatId, history) {
 		await collection.updateOne(
 			{ _id: chatId },
 			{ $set: { history: history, lastUpdated: new Date() } },
-			{ upsert: true } 
+			{ upsert: true }
 		);
 
 	} catch (error) {
 		console.error(`Gagal menyimpan riwayat chat ${chatId}:`, error);
+	}
+}
+
+export async function appendChatMessage(chatId, message) {
+	const db = await connectToDB();
+	const collection = db.collection(COLLECTION_NAME);
+
+	try {
+		// Gunakan $push untuk menambahkan pesan baru ke array history
+		// Gunakan $slice untuk membatasi ukuran array (misal simpan 1000 pesan terakhir untuk konteks)
+		// $slice: -1000 berarti simpan 1000 elemen TERAKHIR
+		await collection.updateOne(
+			{ _id: chatId },
+			{
+				$push: {
+					history: {
+						$each: [message],
+						$slice: -1000
+					}
+				},
+				$set: { lastUpdated: new Date() }
+			},
+			{ upsert: true }
+		);
+	} catch (error) {
+		console.error(`Gagal menambahkan pesan ke riwayat chat ${chatId}:`, error);
 	}
 }

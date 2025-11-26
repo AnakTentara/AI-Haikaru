@@ -1,5 +1,5 @@
-import { getGeminiChatResponse } from "../handlers/geminiProcessor.js";
-import { loadChatHistory, saveChatHistory } from "../handlers/dbHandler.js";
+import { getGeminiChatResponse, analyzeEmojiReaction } from "../handlers/geminiProcessor.js";
+import { loadChatHistory, saveChatHistory, appendChatMessage } from "../handlers/dbHandler.js";
 import pkg from "whatsapp-web.js";
 const { MessageMedia } = pkg;
 import fs from 'fs';
@@ -162,17 +162,72 @@ export default {
       }
     }
 
-    // --- BLOCK 3: AI Logic ---
+    // --- BLOCK 3: AI Logic & Global Message Handling ---
     const botIdFromSession = bot.client.info.wid.user;
     const targetUserIds = config.targetUserIds || [];
 
-    // Cek apakah salah satu dari ID target di-mention
+    const chat = await message.getChat();
+    const isPrivateChat = !chat.isGroup;
+    const chatId = chat.id._serialized;
+
+    // 1. Prepare Message Object
+    const senderWID = message.author || from;
+    const senderIdentifier = message._data.notifyName || senderWID.split("@")[0];
+
+    // Hapus mention dari pesan user agar bersih untuk AI
+    const mentionRegex = new RegExp(`@(${targetUserIds.join("|")})`, "g");
+    const userText = body.replace(mentionRegex, "").trim();
+
+    const timeString = new Date(message.timestamp * 1000).toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZone: "Asia/Jakarta",
+    });
+
+    const formattedUserMessage = `[${timeString}] [${senderIdentifier}]: ${userText}`;
+    const newMessage = { role: "user", text: formattedUserMessage };
+
+    // --- IMAGE HANDLING LOGIC ---
+    if (message.hasMedia) {
+      try {
+        const media = await message.downloadMedia();
+        if (media && media.mimetype.startsWith("image/")) {
+          newMessage.image = {
+            mimeType: media.mimetype,
+            data: media.data
+          };
+          console.log("📸 Gambar diterima dari user & disimpan ke history.");
+        }
+      } catch (err) {
+        console.error("Gagal download media:", err);
+      }
+    } else if (hasQuotedMsg) {
+      try {
+        const quotedMsg = await message.getQuotedMessage();
+        if (quotedMsg.hasMedia) {
+          const media = await quotedMsg.downloadMedia();
+          if (media && media.mimetype.startsWith("image/")) {
+            newMessage.image = {
+              mimeType: media.mimetype,
+              data: media.data
+            };
+            console.log("📸 Gambar diterima dari quoted message & disimpan ke history.");
+          }
+        }
+      } catch (err) {
+        console.error("Gagal download quoted media:", err);
+      }
+    }
+
+    // 2. Save Message to History (Global)
+    // Simpan SEMUA pesan ke database untuk konteks, tidak hanya yang mention bot
+    await appendChatMessage(chatId, newMessage);
+
+    // Cek apakah bot di-mention atau direply
     const isMentioned = mentionedIds.some((mentionedId) =>
       targetUserIds.some((targetId) => mentionedId.startsWith(targetId))
     );
-
-    const chat = await message.getChat();
-    const isPrivateChat = !chat.isGroup;
 
     let isReplyToBot = false;
     if (hasQuotedMsg) {
@@ -186,62 +241,45 @@ export default {
       }
     }
 
-    if (isPrivateChat || isMentioned || isReplyToBot) {
+    const shouldRespond = isPrivateChat || isMentioned || isReplyToBot;
+
+    // 3. Logic Reaksi Emoji (Hanya jika TIDAK merespons dengan teks)
+    // Jika bot akan merespons dengan teks, biasanya tidak perlu reaksi emoji terpisah (atau bisa ditambahkan nanti)
+    if (!shouldRespond && !message.fromMe) {
       try {
-        const chatId = chat.id._serialized;
-        const chatHistory = await loadChatHistory(chatId);
+        // Load history sebentar untuk analisis konteks
+        const historyForReaction = await loadChatHistory(chatId);
+        const reactionAnalysis = await analyzeEmojiReaction(bot, historyForReaction);
 
-        const senderWID = message.author || from;
-        const senderIdentifier = message._data.notifyName || senderWID.split("@")[0];
+        if (reactionAnalysis && reactionAnalysis.emoji) {
+          const { emoji, urgensi } = reactionAnalysis;
+          let shouldReact = false;
 
-        // Hapus mention dari pesan user agar bersih
-        const mentionRegex = new RegExp(`@(${targetUserIds.join("|")})`, "g");
-        const userText = body.replace(mentionRegex, "").trim();
+          // Tentukan apakah harus bereaksi berdasarkan urgensi & RNG
+          const chance = Math.random();
+          if (urgensi === "wajib") shouldReact = true;
+          else if (urgensi === "penting" && chance > 0.2) shouldReact = true; // 80%
+          else if (urgensi === "opsional" && chance > 0.5) shouldReact = true; // 50%
 
-        const timeString = new Date(message.timestamp * 1000).toLocaleTimeString("id-ID", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          timeZone: "Asia/Jakarta",
-        });
-
-        const formattedUserMessage = `[${timeString}] [${senderIdentifier}]: ${userText}`;
-
-        const newMessage = { role: "user", text: formattedUserMessage };
-
-        // --- IMAGE HANDLING LOGIC ---
-        if (message.hasMedia) {
-          try {
-            const media = await message.downloadMedia();
-            if (media && media.mimetype.startsWith("image/")) {
-              newMessage.image = {
-                mimeType: media.mimetype,
-                data: media.data
-              };
-              console.log("📸 Gambar diterima dari user & disimpan ke history.");
-            }
-          } catch (err) {
-            console.error("Gagal download media:", err);
-          }
-        } else if (hasQuotedMsg) {
-          try {
-            const quotedMsg = await message.getQuotedMessage();
-            if (quotedMsg.hasMedia) {
-              const media = await quotedMsg.downloadMedia();
-              if (media && media.mimetype.startsWith("image/")) {
-                newMessage.image = {
-                  mimeType: media.mimetype,
-                  data: media.data
-                };
-                console.log("📸 Gambar diterima dari quoted message & disimpan ke history.");
-              }
-            }
-          } catch (err) {
-            console.error("Gagal download quoted media:", err);
+          if (shouldReact) {
+            await message.react(emoji);
+            console.log(`😊 Reacted with ${emoji} (Urgency: ${urgensi})`);
           }
         }
+      } catch (err) {
+        console.error("Gagal memproses reaksi emoji:", err);
+      }
+    }
 
-        chatHistory.push(newMessage);
+    // 4. Logic Respons Teks (AI Chat)
+    if (shouldRespond) {
+      try {
+        // Load full history untuk chat
+        const chatHistory = await loadChatHistory(chatId);
+
+        // Kirim typing indicator
+        const chatObj = await message.getChat();
+        chatObj.sendStateTyping();
 
         const aiResponse = await getGeminiChatResponse(bot, chatHistory, "gemini-2.5-flash");
 
@@ -260,6 +298,9 @@ export default {
 
         const finalResponse = await message.reply(cleanedResponse);
 
+        // Simpan respons bot ke history
+        // Gunakan appendChatMessage juga agar konsisten, atau push manual jika object history sudah ada
+        // Karena kita sudah load chatHistory, kita push ke array lokal lalu save full (untuk konsistensi urutan)
         chatHistory.push({ role: "model", text: finalResponse.body });
         await saveChatHistory(chatId, chatHistory);
 
