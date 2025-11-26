@@ -56,7 +56,7 @@ export async function get_bot_info(bot, message, chat) {
         botName: bot.config.botName,
         totalCommands: bot.commands.size,
         prefix: bot.prefix,
-        version: "1.6.0",
+        version: bot.version,
         userNumber: userNumber,
         userName: userName,
         chatType: chat.isGroup ? "Grup" : "Pribadi",
@@ -89,7 +89,7 @@ export async function check_ping(bot, message) {
 export async function show_help_menu(bot) {
     return {
         botName: bot.config.botName,
-        version: "1.6.0",
+        version: bot.version,
         prefix: bot.prefix,
         features: [
             {
@@ -167,7 +167,8 @@ export async function generate_image(prompt) {
             throw new Error(`Image API returned ${response.status}`);
         }
 
-        const buffer = await response.buffer();
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
 
         // Ensure .local directory exists
         if (!fs.existsSync('.local')) {

@@ -83,6 +83,7 @@ async function handleFunctionCalls(bot, message, chat, chatHistory, chatId, func
           break;
 
         case 'generate_image':
+          await message.reply("Oke siap! tunggu yaa, aku gambar duluu! 🎨✨");
           result = await generate_image(call.args.prompt);
           if (result.success) {
             const media = MessageMedia.fromFilePath(result.imagePath);
