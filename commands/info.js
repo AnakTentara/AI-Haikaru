@@ -8,12 +8,21 @@ export default {
   triggers: [".info"],
 
   async execute(message, args, bot) {
-    const chat = await message.getChat();
-    const getUserNumber = (message) => {
-      const raw = message.author || message.from;
-      return raw.split("@")[0];
-    };
-    const userNumber = getUserNumber(message);
+  const chat = await message.getChat();
+
+  let userNumber;
+  if (chat.isGroup) {
+    userNumber = message.author?.split("@")[0];
+  } else {
+    userNumber = message.from.split("@")[0];
+  }
+  let userName = "Pengguna";
+  try {
+    const contact = await message.getContact();
+    userName = contact.pushname || contact.name || message._data.notifyName || "Pengguna";
+  } catch (e) {
+    // ignore error
+  }
 
     const geminiPrompt =
       "Seseorang telah menjalankan perintah info bot. Berikan HANYA SATU kalimat singkat, ceria, dan sedikit sok tahu sebagai sapaan pembuka sebelum menyajikan data teknis bot.";
