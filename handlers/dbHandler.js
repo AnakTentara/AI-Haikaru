@@ -1,78 +1,85 @@
-// LOCAL FILE DATABASE – 50 GB storage available
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { MongoClient } from 'mongodb';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const uri = process.env.MONGODB_URI;
+if (!uri) {
+	console.error("❌ MONGODB_URI tidak ditemukan! Harap set environment variable.");
+}
+const client = new MongoClient(uri);
 
-// Folder penyimpanan chat history (naik satu level dari handlers)
-const HISTORY_DIR = path.join(__dirname, '..', 'chat_history');
+const DB_NAME = process.env.DB_NAME || "ai_bot_database";
+const COLLECTION_NAME = "chatHistory";
 
-// Buat folder otomatis saat modul dimuat
-(async () => {
+let dbConnection = null;
+
+async function connectToDB() {
+	if (dbConnection) return dbConnection;
+
 	try {
-		await fs.mkdir(HISTORY_DIR, { recursive: true });
-		console.log(`✅ Folder history siap: ${HISTORY_DIR}`);
+		await client.connect();
+		dbConnection = client.db(DB_NAME);
+		console.log("✅ Berhasil terhubung ke MongoDB!");
+		return dbConnection;
 	} catch (error) {
-		console.error("❌ Gagal membuat folder chat_history:", error);
+		console.error("❌ Gagal terhubung ke MongoDB:", error);
+		throw error;
 	}
-})();
-
-function getFilePath(chatId) {
-	// Sanitize chatId untuk nama file yang aman
-	const safeId = chatId.replace(/[^a-zA-Z0-9@.-]/g, '_');
-	return path.join(HISTORY_DIR, `${safeId}.json`);
 }
 
 export async function loadChatHistory(chatId) {
-	const filePath = getFilePath(chatId);
+	const db = await connectToDB();
+	const collection = db.collection(COLLECTION_NAME);
+
 	try {
-		const data = await fs.readFile(filePath, 'utf-8');
-		const json = JSON.parse(data);
-		return json.history || [];
+		const document = await collection.findOne({ _id: chatId });
+		return document ? document.history : [];
 	} catch (error) {
-		if (error.code === 'ENOENT') {
-			return []; // File belum ada, return empty array
-		}
-		console.error(`❌ Gagal membaca history ${chatId}:`, error);
+		console.error(`Gagal memuat riwayat chat ${chatId}:`, error);
 		return [];
 	}
 }
 
 export async function saveChatHistory(chatId, history) {
-	const filePath = getFilePath(chatId);
+	const db = await connectToDB();
+	const collection = db.collection(COLLECTION_NAME);
 
-	// Batasi history maksimal 100.000 pesan
-	if (history.length > 100000) {
-		history = history.slice(history.length - 100000);
+	if (history.length > 99999) {
+		history = history.slice(history.length - 99999);
 	}
 
-	const data = {
-		chatId,
-		history,
-		lastUpdated: new Date().toISOString()
-	};
-
 	try {
-		// Tulis file JSON (pretty print untuk debug mudah, atau minify untuk hemat space? User minta format rapi di contoh)
-		await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
+		await collection.updateOne(
+			{ _id: chatId },
+			{ $set: { history: history, lastUpdated: new Date() } },
+			{ upsert: true }
+		);
+
 	} catch (error) {
-		console.error(`❌ Gagal menyimpan history ${chatId}:`, error);
+		console.error(`Gagal menyimpan riwayat chat ${chatId}:`, error);
 	}
 }
 
 export async function appendChatMessage(chatId, message) {
+	const db = await connectToDB();
+	const collection = db.collection(COLLECTION_NAME);
+
 	try {
-		// Baca history yang ada
-		const history = await loadChatHistory(chatId);
-
-		// Tambahkan pesan baru
-		history.push(message);
-
-		// Simpan kembali (saveChatHistory sudah handle limit 100k)
-		await saveChatHistory(chatId, history);
+		// Gunakan $push untuk menambahkan pesan baru ke array history
+		// Gunakan $slice untuk membatasi ukuran array (misal simpan 99999 pesan terakhir untuk konteks)
+		// $slice: -99999 berarti simpan 99999 elemen TERAKHIR
+		await collection.updateOne(
+			{ _id: chatId },
+			{
+				$push: {
+					history: {
+						$each: [message],
+						$slice: -99999
+					}
+				},
+				$set: { lastUpdated: new Date() }
+			},
+			{ upsert: true }
+		);
 	} catch (error) {
-		console.error(`❌ Gagal menambahkan pesan ke history ${chatId}:`, error);
+		console.error(`Gagal menambahkan pesan ke riwayat chat ${chatId}:`, error);
 	}
 }

@@ -1,3 +1,12 @@
+import { check_ping } from "../handlers/functionHandler.js";
+
+export function formatPingMessage(data) {
+  let responseText = `🏓 Pong! Gue masih responsif kok bro :v\n\n`;
+  responseText += `⚡ Latency: *${data.latency}ms*\n`;
+  responseText += `📊 Status: *${data.status}*`;
+  return responseText;
+}
+
 export default {
   name: "ping",
   description: "Cek responsivitas bot",
@@ -5,9 +14,8 @@ export default {
   prefixRequired: true,
   triggers: [".ping"],
   async execute(message, args, bot) {
-    const start = Date.now();
-    await message.reply("🏓 Mengirim ping...");
-    const latency = Date.now() - start;
-    await message.reply(`🏓 Pong!\n⏱️ Latensi: ${latency}ms`);
+    const data = await check_ping(bot, message);
+    const responseText = formatPingMessage(data);
+    await message.reply(responseText);
   },
 };

@@ -1,4 +1,26 @@
 import { getGeminiResponse } from "../handlers/geminiProcessor.js";
+import { show_help_menu } from "../handlers/functionHandler.js";
+
+export function formatHelpMessage(data, aiSalutation) {
+  let helpMessage = `${aiSalutation}\n\n`;
+  helpMessage += `🎯 *Fitur AI-Haikaru v${data.version}*\n\n`;
+
+  data.features.forEach(category => {
+    helpMessage += `${category.category}\n`;
+    category.items.forEach(item => {
+      helpMessage += `• ${item}\n`;
+    });
+    helpMessage += `\n`;
+  });
+
+  helpMessage += `💡 *Contoh Penggunaan Natural Language:*\n`;
+  data.naturalLanguageExamples.forEach(example => {
+    helpMessage += `${example}\n`;
+  });
+
+  helpMessage += `\n_Prefix: ${data.prefix} (masih bisa dipakai juga!)_`;
+  return helpMessage;
+}
 
 export default {
   name: "help",
@@ -32,21 +54,13 @@ export default {
       return message.reply(reply);
     }
 
+    // Get data using handler
+    const data = await show_help_menu(bot);
+
     const geminiPrompt = "Seseorang telah menjalankan perintah help. Berikan HANYA SATU kalimat singkat, ceria, dan sedikit sok tahu sebagai sapaan pembuka sebelum menyajikan daftar perintah.";
     const aiSalutation = await getGeminiResponse(bot, geminiPrompt);
 
-    let helpMessage = `${aiSalutation}\n\n`;
-    helpMessage += `╭───「 *MENU UTAMA* 」\n`;
-    helpMessage += `│\n`;
-    helpMessage += `│ 🛠️ *UTILITY*\n`;
-    helpMessage += `│ • *.help* - Tampilkan menu ini\n`;
-    helpMessage += `│ • *.info* - Info statistik bot\n`;
-    helpMessage += `│ • *.ping* - Cek kecepatan respon\n`;
-    helpMessage += `│\n`;
-    helpMessage += `│ 👥 *GROUP*\n`;
-    helpMessage += `│ • *@everyone* - Tag semua member\n`;
-    helpMessage += `│\n`;
-    helpMessage += `╰──────────────────`;
+    const helpMessage = formatHelpMessage(data, aiSalutation);
 
     await message.reply(helpMessage);
   },

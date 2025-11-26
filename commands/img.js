@@ -3,6 +3,28 @@ import pkg from "whatsapp-web.js";
 const { MessageMedia } = pkg;
 import fs from 'fs';
 
+export function formatImageCaption(prompt) {
+    return `Nih gambarnya udah jadi! 🎨✨\n\n_Generated: ${prompt}_`;
+}
+
+export async function handleImageResponse(message, result) {
+    if (result.success) {
+        const media = MessageMedia.fromFilePath(result.imagePath);
+        const caption = formatImageCaption(result.prompt);
+
+        await message.reply(media, undefined, { caption: caption });
+
+        // Cleanup temp file
+        try {
+            fs.unlinkSync(result.imagePath);
+        } catch (e) {
+            console.error("Gagal hapus temp file:", e);
+        }
+    } else {
+        await message.reply(`Waduh, gagal bikin gambar nih 😭\nError: ${result.error}`);
+    }
+}
+
 export default {
     name: "img",
     description: "Generate gambar dari deskripsi teks menggunakan AI",
@@ -22,22 +44,7 @@ export default {
 
         try {
             const result = await generate_image(prompt);
-
-            if (result.success) {
-                const media = MessageMedia.fromFilePath(result.imagePath);
-                const caption = `Nih gambarnya udah jadi! 🎨✨\n\n_Generated: ${result.prompt}_`;
-
-                await message.reply(media, undefined, { caption: caption });
-
-                // Cleanup temp file
-                try {
-                    fs.unlinkSync(result.imagePath);
-                } catch (e) {
-                    console.error("Gagal hapus temp file:", e);
-                }
-            } else {
-                await message.reply(`Waduh, gagal bikin gambar nih 😭\nError: ${result.error}`);
-            }
+            await handleImageResponse(message, result);
         } catch (error) {
             console.error("Error executing .img command:", error);
             console.error("Full error stack:", error.stack);
