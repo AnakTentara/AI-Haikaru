@@ -4,11 +4,11 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import fs from "fs";
 import { GoogleGenAI } from '@google/genai';
-
+import puppeteerConfig from './puppeteerConfig.js';
 import { startServer } from './server.js';
 
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: '../.env' });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
