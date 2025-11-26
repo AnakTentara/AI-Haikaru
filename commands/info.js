@@ -17,23 +17,39 @@ export default {
     senderId = message.from;
   }
 
-  let userNumber = senderId.split("@")[0];
-  try {
-    const lidPhone = await bot.client.pupPage.evaluate((id) => {
-      if (id.includes('@lid')) {
-        const wid = window.Store.WidFactory.createWid(id);
-        return window.Store.LidUtils ? window.Store.LidUtils.getPhoneNumber(wid) : wid._serialized.split("@")[0];
-      }
-      return id.split("@")[0];
-    }, senderId);
+  let userNumber = senderId ? senderId.split("@")[0] : "Tidak diketahui";
 
-    userNumber = lidPhone.replace(/[^0-9]/g, '');
+  try {
+    if (senderId && senderId.includes('@lid')) {
+      const lidWid = await bot.client.pupPage.evaluate((id) => {
+        if (id && id.includes('@lid')) {
+          const wid = window.Store.WidFactory.createWid(id);
+          if (window.Store.LidUtils) {
+            return window.Store.LidUtils.getPhoneNumber(wid);
+          }
+        }
+        return null;
+      }, senderId);
+
+      if (lidWid && typeof lidWid === 'object' && lidWid.user) {
+        userNumber = lidWid.user;
+      } else if (lidWid) {
+        userNumber = lidWid.toString().split("@")[0];
+      }
+    }
+
+    if (typeof userNumber === 'string') {
+      userNumber = userNumber.replace(/[^0-9]/g, '');
+    }
   } catch (e) {
-    console.error('Gagal convert LID:', e);
+    console.error('Gagal convert LID:', e.message);
     try {
       const contact = await message.getContact();
       userNumber = contact.number || userNumber;
-    } catch {}
+    } catch (contactErr) {
+      console.error('Gagal getContact:', contactErr.message);
+      userNumber = message._data.notifyName ? message._data.notifyName.match(/\d{10,}/)?.[0] || userNumber : userNumber;
+    }
   }
 
   let userName = message._data.notifyName || "Pengguna";
