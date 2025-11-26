@@ -6,9 +6,14 @@ export default {
   usage: ".info",
   prefixRequired: true,
   triggers: [".info"],
+
   async execute(message, args, bot) {
     const chat = await message.getChat();
-    const userNumber = await message.getContact();
+    const getUserNumber = (message) => {
+      const raw = message.author || message.from;
+      return raw.split("@")[0];
+    };
+    const userNumber = getUserNumber(message);
 
     const geminiPrompt =
       "Seseorang telah menjalankan perintah info bot. Berikan HANYA SATU kalimat singkat, ceria, dan sedikit sok tahu sebagai sapaan pembuka sebelum menyajikan data teknis bot.";
