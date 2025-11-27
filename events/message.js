@@ -286,8 +286,8 @@ export default {
             // penting: 40% (reduced from 80%)
             // opsional: 20% (reduced from 50%)
             if (urgensi === "wajib") shouldReact = true;
-            else if (urgensi === "penting" && chance > 0.6) shouldReact = true; // 40%
-            else if (urgensi === "opsional" && chance > 0.8) shouldReact = true; // 20%
+            else if (urgensi === "penting" && chance > 0.7) shouldReact = true; // 30%
+            else if (urgensi === "opsional" && chance > 0.85) shouldReact = true; // 15%
 
             if (shouldReact) {
               await message.react(emoji);
