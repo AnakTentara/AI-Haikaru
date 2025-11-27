@@ -15,11 +15,6 @@ import { handleImageResponse } from '../commands/img.js';
 // Emoji reaction cooldown tracker (chatId -> last reaction timestamp)
 const reactionCooldowns = new Map();
 const imageSpamTracker = new Map();
-// AI chat rate limiter (chatId -> [{ timestamp, userId }])
-const aiChatRateLimiter = new Map();
-const RATE_LIMIT_REQUESTS = 10; // Max requests per minute per user
-const RATE_LIMIT_WINDOW = 60000; // 60 seconds
-const RATE_LIMIT_WHITELIST = ['628816197519']; // Bot owner
 
 /**
  * Handle function calls from AI
