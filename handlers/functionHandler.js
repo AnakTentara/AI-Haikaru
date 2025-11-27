@@ -150,71 +150,19 @@ export async function tag_everyone(bot, message, chat) {
 
 export async function generate_image(bot, prompt) {
     try {
-        if (!bot.geminiApi) {
-            throw new Error("Gemini API not initialized");
+ * Dipanggil saat user tanya info terkini / real - time
+            */
+        export async function perform_google_search(bot, query) {
+            console.log(`🔍 Performing Google Search for: "${query}"`);
+
+            // Import helper secara dinamis untuk menghindari circular dependency saat init
+            const { getGroundedResponse } = await import('./geminiProcessor.js');
+
+            const searchResult = await getGroundedResponse(bot, query);
+
+            return {
+                query: query,
+                result: searchResult,
+                timestamp: new Date().toISOString()
+            };
         }
-
-        console.log(`🎨 Generating image with Gemini: "${prompt}"`);
-
-        const response = await bot.geminiApi.models.generateContent({
-            model: "gemini-2.5-flash-image",
-            contents: { role: 'user', parts: [{ text: prompt }] }
-        });
-
-        if (!response || !response.candidates || response.candidates.length === 0) {
-            throw new Error("No image generated");
-        }
-
-        const part = response.candidates[0].content.parts[0];
-
-        if (!part.inlineData || !part.inlineData.data) {
-            throw new Error("Invalid image response format");
-        }
-
-        const buffer = Buffer.from(part.inlineData.data, 'base64');
-
-        // Ensure .local directory exists
-        if (!fs.existsSync('.local')) {
-            fs.mkdirSync('.local', { recursive: true });
-        }
-
-        // Save to temp file
-        const tempPath = `.local/temp_${Date.now()}.png`;
-        fs.writeFileSync(tempPath, buffer);
-
-        console.log(`✅ Image generated successfully: ${tempPath}`);
-
-        return {
-            success: true,
-            imagePath: tempPath,
-            prompt: prompt,
-            size: buffer.length
-        };
-    } catch (error) {
-        console.error('❌ Image generation failed:', error);
-        return {
-            success: false,
-            error: error.message,
-            prompt: prompt
-        };
-    }
-}
-
-/**
- * Perform Google Search via Gemini Grounding Proxy
- * Dipanggil saat user tanya info terkini/real-time
- */
-export async function perform_google_search(bot, query) {
-    console.log(`🔍 Performing Google Search for: "${query}"`);
-
-    // Import helper secara dinamis untuk menghindari circular dependency saat init
-    const { getGroundedResponse } = await import('./geminiProcessor.js');
-
-    const searchResult = await getGroundedResponse(bot, query);
-
-    return {
-        query: query,
-        result: searchResult,
-        timestamp: new Date().toISOString()
-    };
-}

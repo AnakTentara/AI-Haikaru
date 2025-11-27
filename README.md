@@ -2,7 +2,7 @@
 
 > **WhatsApp AI Bot** dengan Google Gemini AI - Teman chatting yang asik, pintar, dan siap bantu 24/7!
 
-[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](https://github.com/AnakTentara/AI-Haikaru)
+[![Version](https://img.shields.io/badge/version-1.7.5-blue.svg)](https://github.com/AnakTentara/AI-Haikaru)
 [![Node.js](https://img.shields.io/badge/node.js-v18+-green.svg)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-ISC-orange.svg)](LICENSE)
 
@@ -338,4 +338,4 @@ ISC License - Free to use & modify
 
 ---
 
-**Made with ❤️ by Haikal | AI-Haikaru v1.6.0**
+**Made with ❤️ by Haikal | AI-Haikaru v1.7.5**
