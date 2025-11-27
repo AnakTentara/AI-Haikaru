@@ -157,10 +157,11 @@ export async function generate_image(bot, prompt) {
         console.log(`🎨 Generating image with Gemini: "${prompt}"`);
 
         // Gunakan model Imagen 3 (gemini-3-pro-image-preview / imagen-3.0-generate-001)
-        const model = bot.geminiApi.getGenerativeModel({ model: "imagen-3.0-generate-001" });
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
+        // Note: @google/genai SDK uses models.generateContent
+        const response = await bot.geminiApi.models.generateContent({
+            model: "imagen-3.0-generate-001",
+            contents: { role: 'user', parts: [{ text: prompt }] }
+        });
 
         if (!response || !response.candidates || response.candidates.length === 0) {
             throw new Error("No image generated");
