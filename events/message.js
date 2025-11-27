@@ -1,4 +1,4 @@
-import { getGeminiChatResponse, analyzeEmojiReaction } from "../handlers/geminiProcessor.js";
+import { getGeminiChatResponse, analyzeEmojiReaction, analyzeContextIntent } from "../handlers/geminiProcessor.js";
 import { loadChatHistory, saveChatHistory, appendChatMessage } from "../handlers/dbHandler.js";
 import Logger from "../handlers/logger.js";
 import pkg from "whatsapp-web.js";
@@ -308,9 +308,20 @@ export default {
       try {
         let typingTimeIndicator = 700;
 
-        Logger.ai('AI_CHAT', 'Processing AI chat response...');
-        Logger.db('LOAD_HISTORY', `Loading chat history for ${chatId}`);
-        const chatHistory = await loadChatHistory(chatId);
+        // Smart Context Logic (AI Intent Analysis)
+        Logger.ai('SMART_CONTEXT', 'Analyzing context intent...');
+        const requiresMemory = await analyzeContextIntent(bot, body);
+
+        const historyLimit = requiresMemory ? 9999 : 30; // 30 (Fast) vs 9999 (Deep)
+
+        if (requiresMemory) {
+          Logger.info('SMART_CONTEXT', `Deep memory required! Loading ${historyLimit} messages.`);
+        } else {
+          Logger.info('SMART_CONTEXT', `Standard context sufficient. Loading ${historyLimit} messages.`);
+        }
+
+        Logger.db('LOAD_HISTORY', `Loading chat history for ${chatId} (Limit: ${historyLimit})`);
+        const chatHistory = await loadChatHistory(chatId, historyLimit);
 
         const thinkingStart = Date.now();
 

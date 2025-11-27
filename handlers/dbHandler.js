@@ -25,12 +25,17 @@ async function connectToDB() {
 	}
 }
 
-export async function loadChatHistory(chatId) {
+export async function loadChatHistory(chatId, limit = 30) {
 	const db = await connectToDB();
 	const collection = db.collection(COLLECTION_NAME);
 
 	try {
-		const document = await collection.findOne({ _id: chatId });
+		// Gunakan projection $slice untuk mengambil hanya N pesan terakhir
+		// Syntax: { history: { $slice: -limit } } -> ambil limit terakhir dari array
+		const document = await collection.findOne(
+			{ _id: chatId },
+			{ projection: { history: { $slice: -limit } } }
+		);
 		return document ? document.history : [];
 	} catch (error) {
 		console.error(`Gagal memuat riwayat chat ${chatId}:`, error);

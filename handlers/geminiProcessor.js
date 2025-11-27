@@ -265,3 +265,44 @@ Output WAJIB JSON format:
 		return null;
 	}
 }
+
+/**
+ * Menganalisis intent pesan untuk menentukan apakah butuh deep context (history panjang).
+ * Menggunakan model cepat (Flash) untuk keputusan instan.
+ */
+export async function analyzeContextIntent(bot, messageBody) {
+	if (!bot.geminiApi) return false;
+
+	const systemInstruction = `
+Kamu adalah AI classifier. Tugasmu hanya satu: Menentukan apakah pesan user membutuhkan ingatan masa lalu (long-term memory) atau konteks percakapan yang panjang.
+
+Kriteria "requiresMemory":
+- TRUE jika: User bertanya tentang masa lalu ("kemarin kita bahas apa?"), menagih janji ("mana gambarnya?"), merujuk topik sebelumnya ("lanjutin yang tadi"), atau pertanyaan implisit yang butuh konteks ("siapa dia?").
+- FALSE jika: Sapaan ("halo"), pertanyaan umum ("siapa presiden RI?"), perintah baru ("buatkan gambar kucing"), atau obrolan ringan yang berdiri sendiri.
+
+Output WAJIB JSON:
+{ "requiresMemory": boolean }
+`;
+
+	const generationConfig = {
+		temperature: 0.5,
+		responseMimeType: "application/json",
+		systemInstruction: systemInstruction,
+	};
+
+	try {
+		const response = await bot.geminiApi.models.generateContent({
+			model: "gemini-2.5-flash",
+			contents: [{ role: "user", parts: [{ text: messageBody }] }],
+			config: generationConfig,
+		});
+
+		if (!response.text) return false;
+
+		const result = JSON.parse(response.text);
+		return result.requiresMemory || false;
+	} catch (error) {
+		console.error("⚠️ Gagal analisis intent context:", error.message);
+		return false; // Default to fast mode on error
+	}
+}
