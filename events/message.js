@@ -342,7 +342,7 @@ export default {
         Logger.db('SAVE_HISTORY', `Saving chat history for ${chatId}`);
         await saveChatHistory(chatId, chatHistory);
 
-        Logger.success('AI_CHAT', `AI response sent with ${Date.now() - thinkingStart * 1000}s`);
+        Logger.success('AI_CHAT', `AI response sent with ${(Date.now() - thinkingStart) / 1000}s`);
 
       } catch (error) {
         Logger.error('AI_CHAT', 'Error during AI chat processing', { error: error.message });
