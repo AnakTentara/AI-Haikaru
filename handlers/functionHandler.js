@@ -156,10 +156,8 @@ export async function generate_image(bot, prompt) {
 
         console.log(`🎨 Generating image with Gemini: "${prompt}"`);
 
-        // Gunakan model Imagen 3 (gemini-3-pro-image-preview / imagen-3.0-generate-001)
-        // Note: @google/genai SDK uses models.generateContent
         const response = await bot.geminiApi.models.generateContent({
-            model: "gemini-3-pro-image-preview",
+            model: "gemini-2.5-flash-image",
             contents: { role: 'user', parts: [{ text: prompt }] }
         });
 
