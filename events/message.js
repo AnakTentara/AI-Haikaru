@@ -12,6 +12,9 @@ import { formatPingMessage } from '../commands/ping.js';
 import { formatEveryoneMessage } from '../commands/everyone.js';
 import { handleImageResponse } from '../commands/img.js';
 
+// Emoji reaction cooldown tracker (chatId -> last reaction timestamp)
+const reactionCooldowns = new Map();
+
 /**
  * Handle function calls from AI
  */
@@ -252,25 +255,41 @@ export default {
     // 3. Logic Reaksi Emoji (Hanya jika TIDAK merespons dengan teks)
     if (!shouldRespond && !message.fromMe) {
       try {
-        Logger.ai('EMOJI_REACTION', 'Analyzing message for emoji reaction...');
-        const historyForReaction = await loadChatHistory(chatId);
-        const reactionAnalysis = await analyzeEmojiReaction(bot, historyForReaction);
+        // Check cooldown - minimum 30 detik antara reaksi per chat
+        const now = Date.now();
+        const lastReaction = reactionCooldowns.get(chatId) || 0;
+        const cooldownTime = 30000; // 30 detik
+        const timeSinceLastReaction = now - lastReaction;
 
-        if (reactionAnalysis && reactionAnalysis.emoji) {
-          const { emoji, urgensi } = reactionAnalysis;
-          Logger.data('EMOJI_REACTION', 'Reaction analysis complete', { emoji, urgensi });
-          let shouldReact = false;
+        if (timeSinceLastReaction < cooldownTime) {
+          const remainingTime = Math.ceil((cooldownTime - timeSinceLastReaction) / 1000);
+          Logger.info('EMOJI_REACTION', `Cooldown active, skipping reaction (${remainingTime}s remaining)`);
+        } else {
+          Logger.ai('EMOJI_REACTION', 'Analyzing message for emoji reaction...');
+          const historyForReaction = await loadChatHistory(chatId);
+          const reactionAnalysis = await analyzeEmojiReaction(bot, historyForReaction);
 
-          const chance = Math.random();
-          if (urgensi === "wajib") shouldReact = true;
-          else if (urgensi === "penting" && chance > 0.2) shouldReact = true;
-          else if (urgensi === "opsional" && chance > 0.5) shouldReact = true;
+          if (reactionAnalysis && reactionAnalysis.emoji) {
+            const { emoji, urgensi } = reactionAnalysis;
+            Logger.data('EMOJI_REACTION', 'Reaction analysis complete', { emoji, urgensi });
+            let shouldReact = false;
 
-          if (shouldReact) {
-            await message.react(emoji);
-            Logger.outgoing('EMOJI_REACTION', `Reacted with ${emoji}`, { urgensi, chance: chance.toFixed(2) });
-          } else {
-            Logger.info('EMOJI_REACTION', `Skipped reaction (${urgensi})`, { chance: chance.toFixed(2) });
+            const chance = Math.random();
+            // Adjusted probabilities to reduce spam:
+            // wajib: 100% (very important emotional messages)
+            // penting: 40% (reduced from 80%)
+            // opsional: 20% (reduced from 50%)
+            if (urgensi === "wajib") shouldReact = true;
+            else if (urgensi === "penting" && chance > 0.6) shouldReact = true; // 40%
+            else if (urgensi === "opsional" && chance > 0.8) shouldReact = true; // 20%
+
+            if (shouldReact) {
+              await message.react(emoji);
+              reactionCooldowns.set(chatId, now); // Update cooldown timestamp
+              Logger.outgoing('EMOJI_REACTION', `Reacted with ${emoji}`, { urgensi, chance: chance.toFixed(2) });
+            } else {
+              Logger.info('EMOJI_REACTION', `Skipped reaction (${urgensi})`, { chance: chance.toFixed(2) });
+            }
           }
         }
       } catch (err) {
