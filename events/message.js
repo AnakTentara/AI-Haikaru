@@ -306,6 +306,8 @@ export default {
     // 4. Logic Respons Teks (AI Chat)
     if (shouldRespond) {
       try {
+        let typingTimeIndicator = 700;
+
         Logger.ai('AI_CHAT', 'Processing AI chat response...');
         Logger.db('LOAD_HISTORY', `Loading chat history for ${chatId}`);
         const chatHistory = await loadChatHistory(chatId);
