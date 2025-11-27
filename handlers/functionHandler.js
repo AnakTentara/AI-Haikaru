@@ -148,27 +148,31 @@ export async function tag_everyone(bot, message, chat) {
     };
 }
 
-/**
- * Generate image from text prompt
- * Menggunakan Pollinations.ai (free, no API key needed)
- */
-export async function generate_image(prompt) {
+export async function generate_image(bot, prompt) {
     try {
-        // Using Pollinations.ai - free AI image generation
-        const encodedPrompt = encodeURIComponent(prompt);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
-
-        console.log(`🎨 Generating image: "${prompt}"`);
-
-        const fetch = (await import('node-fetch')).default;
-        const response = await fetch(imageUrl);
-
-        if (!response.ok) {
-            throw new Error(`Image API returned ${response.status}`);
+        if (!bot.geminiApi) {
+            throw new Error("Gemini API not initialized");
         }
 
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+        console.log(`🎨 Generating image with Gemini: "${prompt}"`);
+
+        // Gunakan model Imagen 3 (gemini-3-pro-image-preview / imagen-3.0-generate-001)
+        const model = bot.geminiApi.getGenerativeModel({ model: "imagen-3.0-generate-001" });
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+
+        if (!response || !response.candidates || response.candidates.length === 0) {
+            throw new Error("No image generated");
+        }
+
+        const part = response.candidates[0].content.parts[0];
+
+        if (!part.inlineData || !part.inlineData.data) {
+            throw new Error("Invalid image response format");
+        }
+
+        const buffer = Buffer.from(part.inlineData.data, 'base64');
 
         // Ensure .local directory exists
         if (!fs.existsSync('.local')) {
@@ -196,6 +200,7 @@ export async function generate_image(prompt) {
         };
     }
 }
+
 /**
  * Perform Google Search via Gemini Grounding Proxy
  * Dipanggil saat user tanya info terkini/real-time

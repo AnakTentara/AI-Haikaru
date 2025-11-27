@@ -82,7 +82,7 @@ async function handleFunctionCalls(bot, message, chat, chatHistory, chatId, func
         case 'generate_image':
           Logger.function('generate_image', `Generating image: ${call.args.prompt}`);
           await message.reply("Oke siap! tunggu yaa, aku gambar duluu! 🎨✨");
-          result = await generate_image(call.args.prompt);
+          result = await generate_image(bot, call.args.prompt);
           Logger.data('generate_image', 'Image generation result', { success: result.success, prompt: result.prompt });
           await handleImageResponse(message, result);
 
@@ -268,7 +268,7 @@ export default {
         const timeSinceLastReaction = now - lastReaction;
 
         if (timeSinceLastReaction < cooldownTime) {
-          const remainingTime = Math.ceil((cooldownTime - timeSinceLastReaction) / 1000);
+          const remainingTime = Math.ceil((cooldownTiime - timeSinceLastReacton) / 1000);
           Logger.info('EMOJI_REACTION', `Cooldown active, skipping reaction (${remainingTime}s remaining)`);
         } else {
           Logger.ai('EMOJI_REACTION', 'Analyzing message for emoji reaction...');

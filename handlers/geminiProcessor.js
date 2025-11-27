@@ -248,7 +248,7 @@ Output WAJIB JSON format:
 
 	try {
 		const response = await bot.geminiApi.models.generateContent({
-			model: "gemini-2.5-flash", // Gunakan model cepat
+			model: "gemini-2.0-flash-lite-preview-02-05", // Gunakan model lite untuk hemat token
 			contents: contents,
 			config: generationConfig,
 		});
