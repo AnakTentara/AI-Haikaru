@@ -159,7 +159,7 @@ export async function generate_image(bot, prompt) {
         // Gunakan model Imagen 3 (gemini-3-pro-image-preview / imagen-3.0-generate-001)
         // Note: @google/genai SDK uses models.generateContent
         const response = await bot.geminiApi.models.generateContent({
-            model: "imagen-3.0-generate-001",
+            model: "gemini-3-pro-image-preview",
             contents: { role: 'user', parts: [{ text: prompt }] }
         });
 
