@@ -14,6 +14,7 @@ import { handleImageResponse } from '../commands/img.js';
 
 // Emoji reaction cooldown tracker (chatId -> last reaction timestamp)
 const reactionCooldowns = new Map();
+const imageSpamTracker = new Map();
 
 /**
  * Handle function calls from AI
@@ -201,6 +202,28 @@ export default {
         Logger.info('IMAGE', 'Downloading image from message...');
         const media = await message.downloadMedia();
         if (media && media.mimetype.startsWith("image/")) {
+          // Anti-spam: Check if user is spamming images
+          const now = Date.now();
+          const senderId = senderWID;
+
+          if (!imageSpamTracker.has(senderId)) {
+            imageSpamTracker.set(senderId, []);
+          }
+
+          const timestamps = imageSpamTracker.get(senderId);
+          // Remove timestamps older than 60 seconds
+          const recentTimestamps = timestamps.filter(t => now - t < 60000);
+
+          if (recentTimestamps.length >= 5) {
+            // User has sent 5+ images in the last 60 seconds - SPAM!
+            Logger.warning('IMAGE_SPAM', `User ${senderIdentifier} is spamming images (${recentTimestamps.length + 1} images). Ignoring this image.`);
+            return; // Exit early, don't process this message at all
+          }
+
+          // Not spam, add timestamp and continue
+          recentTimestamps.push(now);
+          imageSpamTracker.set(senderId, recentTimestamps);
+
           newMessage.image = {
             mimeType: media.mimetype,
             data: media.data
@@ -209,23 +232,6 @@ export default {
         }
       } catch (err) {
         Logger.error('IMAGE', 'Failed to download media', { error: err.message });
-      }
-    } else if (hasQuotedMsg) {
-      try {
-        const quotedMsg = await message.getQuotedMessage();
-        if (quotedMsg.hasMedia) {
-          Logger.info('IMAGE', 'Downloading image from quoted message...');
-          const media = await quotedMsg.downloadMedia();
-          if (media && media.mimetype.startsWith("image/")) {
-            newMessage.image = {
-              mimeType: media.mimetype,
-              data: media.data
-            };
-            Logger.success('IMAGE', 'Quoted image downloaded and added', { mimeType: media.mimetype });
-          }
-        }
-      } catch (err) {
-        Logger.error('IMAGE', 'Failed to download quoted media', { error: err.message });
       }
     }
 
