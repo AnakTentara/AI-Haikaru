@@ -308,8 +308,6 @@ export default {
         const chatObj = await message.getChat();
         chatObj.sendStateTyping();
 
-        // Delay singkat untuk efek typing yang lebih natural (1.5 detik)
-        await new Promise(resolve => setTimeout(resolve, 1500));
 
         Logger.ai('AI_CHAT', 'Calling Gemini API...');
         const aiResponse = await getGeminiChatResponse(bot, chatHistory, "gemini-2.5-flash");
@@ -331,6 +329,9 @@ export default {
         let cleanedResponse = aiResponse.replace(aggressivePrefixRegex, "").trim();
 
         if (!cleanedResponse) cleanedResponse = aiResponse.trim();
+
+        // Delay singkat untuk efek typing yang lebih natural (1.5 detik)
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         Logger.outgoing('AI_CHAT', 'Sending AI response to user');
         const finalResponse = await message.reply(cleanedResponse);
