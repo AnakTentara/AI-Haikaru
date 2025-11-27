@@ -330,11 +330,11 @@ export default {
 
         if (!cleanedResponse) cleanedResponse = aiResponse.trim();
 
-        // Delay singkat untuk efek typing yang lebih natural (1.5 detik)
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
         Logger.outgoing('AI_CHAT', 'Sending AI response to user');
         const finalResponse = await message.reply(cleanedResponse);
+
+        // Delay singkat untuk efek typing yang lebih natural (1.5 detik)
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         chatHistory.push({ role: "model", text: finalResponse.body });
         Logger.db('SAVE_HISTORY', `Saving chat history for ${chatId}`);
