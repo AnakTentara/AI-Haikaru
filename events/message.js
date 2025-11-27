@@ -310,47 +310,40 @@ export default {
         Logger.db('LOAD_HISTORY', `Loading chat history for ${chatId}`);
         const chatHistory = await loadChatHistory(chatId);
 
-        Logger.info('AI_CHAT', 'Sending typing indicator...');
-        const chatObj = await message.getChat();
-        chatObj.sendStateTyping();
-
+        const thinkingStart = Date.now();
 
         Logger.ai('AI_CHAT', 'Calling Gemini API...');
         const aiResponse = await getGeminiChatResponse(bot, chatHistory, "gemini-2.5-flash");
 
-        // Handle function calls from AI
         if (aiResponse.type === 'function_call') {
           Logger.ai('AI_CHAT', 'AI requested function calls', { count: aiResponse.functionCalls.length });
           await handleFunctionCalls(bot, message, chat, chatHistory, chatId, aiResponse.functionCalls);
           return;
         }
 
-        Logger.data('AI_CHAT', 'AI response received', {
-          length: aiResponse.length,
-          preview: aiResponse.substring(0, 50) + '...'
-        });
-
-        // Normal text response
         const aggressivePrefixRegex = /^(\[.*?\]\s*(\[.*?\]:\s*)?)+/i;
         let cleanedResponse = aiResponse.replace(aggressivePrefixRegex, "").trim();
-
         if (!cleanedResponse) cleanedResponse = aiResponse.trim();
 
-        // Delay singkat untuk efek typing yang lebih natural (1.5 detik)
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        Logger.data('AI_CHAT', 'AI response ready', { length: cleanedResponse.length });
 
-        Logger.outgoing('AI_CHAT', 'Sending AI response to user');
+        const chatObj = await message.getChat();
+        chatObj.sendStateTyping();
+
+        await new Promise(resolve => setTimeout(resolve, typingTimeIndicator));
+
+        chatObj.clearState();
+        Logger.outgoing('AI_CHAT', `Sending AI response (${typingTimeIndicator / 1000}-second typing effect)`);
         const finalResponse = await message.reply(cleanedResponse);
 
         chatHistory.push({ role: "model", text: finalResponse.body });
         Logger.db('SAVE_HISTORY', `Saving chat history for ${chatId}`);
         await saveChatHistory(chatId, chatHistory);
 
-        Logger.success('AI_CHAT', 'AI chat response completed', {
-          responseLength: cleanedResponse.length
-        });
+        Logger.success('AI_CHAT', `AI response sent with ${Date.now() - thinkingStart * 1000}s`);
+
       } catch (error) {
-        Logger.error('AI_CHAT', 'Error during AI chat processing', { error: error.message, stack: error.stack });
+        Logger.error('AI_CHAT', 'Error during AI chat processing', { error: error.message });
         await message.reply("Maaf, AI-Haikaru sedang gangguan. Coba lagi nanti ya!");
       }
     }
