@@ -354,7 +354,7 @@ export async function create_text_sticker(text) {
     const svgText = lines.map((line, i) => {
         const y = linePositions[i];
 
-        let attributes = `x="${padding}" y="${y}" font-size="${fontSize}" font-family="Roboto, sans-serif" fill="#000000"`;
+        let attributes = `x="${padding}" y="${y}" font-size="${fontSize}" font-family="Calibri, sans-serif" fill="#000000"`;
 
         if (line.includes(' ')) {
             // Full Justify for lines with multiple words
