@@ -259,7 +259,7 @@ export async function create_text_sticker(text) {
     console.log(`🎨 Creating text sticker: "${text}"`);
 
     // Configuration
-    const padding = 20;
+    const padding = 30;
     const canvasSize = 512;
     const maxWidth = canvasSize - (padding * 2);
     const maxHeight = canvasSize - (padding * 2);
@@ -271,15 +271,8 @@ export async function create_text_sticker(text) {
     // --- Layout Logic (Word Splitting) ---
     if (words.length === 1) {
         lines = [words[0]];
-    } else if (words.length === 2) {
+    } else if (words.length === 2 || words.length === 3 || words.length === 4) {
         lines = words;
-    } else if (words.length === 3) {
-        lines = words;
-    } else if (words.length === 4) {
-        lines = [
-            `${words[0]} ${words[1]}`,
-            `${words[2]} ${words[3]}`
-        ];
     } else {
         // Balanced Wrapping
         const totalChars = text.length;
