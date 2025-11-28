@@ -2,6 +2,10 @@
  * Fungsi untuk memproses prompt menggunakan Gemini API dengan Function Calling support.
  * @param {object} bot - Instance bot utama yang berisi bot.geminiApi.
  * @param {array} chatHistory - Riwayat chat untuk context.
+/**
+ * Fungsi untuk memproses prompt menggunakan Gemini API dengan Function Calling support.
+ * @param {object} bot - Instance bot utama yang berisi bot.geminiApi.
+ * @param {array} chatHistory - Riwayat chat untuk context.
  * @param {string} modelName - Model yang akan digunakan (mis. 'gemini-2.5-flash').
  * @returns {Promise<string|object>} - Teks balasan atau function call object.
  */
@@ -13,131 +17,163 @@ export async function getGeminiChatResponse(
 	chatHistory,
 	modelName = "gemini-2.5-flash",
 ) {
-	if (!bot.geminiApi) {
+	if (!bot.openai) {
 		return "Maaf, fitur AI sedang tidak aktif. Harap hubungi pengembang (Haikal).";
 	}
 
 	const systemInstruction = HAIKARU_PERSONA;
 
-	const generationConfig = {
-		temperature: 0.8,
-		systemInstruction: systemInstruction,
-		tools: [
-			{
-				functionDeclarations: [
-					{
-						name: "get_bot_info",
-						description: "Dapatkan informasi tentang bot, statistik, dan info user/chat saat ini. Gunakan saat user tanya tentang bot, nomor mereka, info grup, atau statistik.",
-						parameters: {
-							type: "OBJECT",
-							properties: {},
-							required: []
-						}
-					},
-					{
-						name: "check_ping",
-						description: "Cek responsivitas dan latency bot. Gunakan saat user tanya 'masih hidup?', 'cek ping', 'cepat ga?', 'bot responsif?', atau sejenisnya.",
-						parameters: {
-							type: "OBJECT",
-							properties: {},
-							required: []
-						}
-					},
-					{
-						name: "show_help_menu",
-						description: "Tampilkan daftar fitur dan kemampuan BOT. HANYA gunakan saat user EKSPLISIT tanya tentang fitur/command/kapabilitas bot (e.g., 'fitur apa aja?', 'bisa ngapain aja?', 'tunjukin command'). JANGAN gunakan untuk request 'bantuin dong' yang generic (itu normal chat).",
-						parameters: {
-							type: "OBJECT",
-							properties: {},
-							required: []
-						}
-					},
-					{
-						name: "tag_everyone",
-						description: "Tag/mention semua member di grup. HANYA gunakan di grup, dan saat user EKSPLISIT minta tag/panggil semua orang (e.g., 'tag semua', 'mention all', 'panggil semua member'). JANGAN gunakan untuk greeting biasa.",
-						parameters: {
-							type: "OBJECT",
-							properties: {},
-							required: []
-						}
-					},
-					{
-						name: "generate_image",
-						description: "Generate/buat gambar dari deskripsi text. Gunakan saat user minta buatkan/bikinin/generate gambar.",
-						parameters: {
-							type: "OBJECT",
-							properties: {
-								prompt: {
-									type: "STRING",
-									description: "Deskripsi gambar dalam bahasa Inggris (translate dari request user jika perlu)"
-								}
-							},
-							required: ["prompt"]
-						}
-					},
-					{
-						name: "perform_google_search",
-						description: "Lakukan pencarian Google untuk info terkini/real-time (berita, cuaca, info publik, fakta terbaru). Gunakan saat user tanya hal yang butuh akses internet.",
-						parameters: {
-							type: "OBJECT",
-							properties: {
-								query: {
-									type: "STRING",
-									description: "Query pencarian yang spesifik"
-								}
-							},
-							required: ["query"]
-						}
-					}
-				]
-			}
-		],
-	};
+	// Convert chat history to OpenAI format
+	const messages = [
+		{ role: "system", content: systemInstruction }
+	];
 
-	const contents = chatHistory.map((msg) => {
-		const content = {
-			role: msg.role,
-			parts: [{ text: msg.text }],
-		};
+	for (const msg of chatHistory) {
+		const role = msg.role === "model" ? "assistant" : "user";
+		let content = msg.text;
 
-		// Jika pesan memiliki data gambar yang tersimpan
+		// Handle images if present (using OpenAI's image_url format if supported by Gemini via OpenAI endpoint, 
+		// or inline base64 if that's how Gemini OpenAI compat works. 
+		// Gemini OpenAI compat supports standard OpenAI image_url.
+		// However, our msg.image.data is base64.
 		if (msg.image && msg.image.data && msg.image.mimeType) {
-			content.parts.push({
-				inlineData: {
-					mimeType: msg.image.mimeType,
-					data: msg.image.data
+			content = [
+				{ type: "text", text: msg.text },
+				{
+					type: "image_url",
+					image_url: {
+						url: `data:${msg.image.mimeType};base64,${msg.image.data}`
+					}
 				}
-			});
+			];
 		}
 
-		return content;
-	});
+		messages.push({ role, content });
+	}
+
+	const tools = [
+		{
+			type: "function",
+			function: {
+				name: "get_bot_info",
+				description: "Dapatkan informasi tentang bot, statistik, dan info user/chat saat ini. Gunakan saat user tanya tentang bot, nomor mereka, info grup, atau statistik.",
+				parameters: {
+					type: "object",
+					properties: {},
+					required: []
+				}
+			}
+		},
+		{
+			type: "function",
+			function: {
+				name: "check_ping",
+				description: "Cek responsivitas dan latency bot. Gunakan saat user tanya 'masih hidup?', 'cek ping', 'cepat ga?', 'bot responsif?', atau sejenisnya.",
+				parameters: {
+					type: "object",
+					properties: {},
+					required: []
+				}
+			}
+		},
+		{
+			type: "function",
+			function: {
+				name: "show_help_menu",
+				description: "Tampilkan daftar fitur dan kemampuan BOT. HANYA gunakan saat user EKSPLISIT tanya tentang fitur/command/kapabilitas bot (e.g., 'fitur apa aja?', 'bisa ngapain aja?', 'tunjukin command'). JANGAN gunakan untuk request 'bantuin dong' yang generic (itu normal chat).",
+				parameters: {
+					type: "object",
+					properties: {},
+					required: []
+				}
+			}
+		},
+		{
+			type: "function",
+			function: {
+				name: "tag_everyone",
+				description: "Tag/mention semua member di grup. HANYA gunakan di grup, dan saat user EKSPLISIT minta tag/panggil semua orang (e.g., 'tag semua', 'mention all', 'panggil semua member'). JANGAN gunakan untuk greeting biasa.",
+				parameters: {
+					type: "object",
+					properties: {},
+					required: []
+				}
+			}
+		},
+		{
+			type: "function",
+			function: {
+				name: "generate_image",
+				description: "Generate/buat gambar dari deskripsi text. Gunakan saat user minta buatkan/bikinin/generate gambar.",
+				parameters: {
+					type: "object",
+					properties: {
+						prompt: {
+							type: "string",
+							description: "Deskripsi gambar dalam bahasa Inggris (translate dari request user jika perlu)"
+						}
+					},
+					required: ["prompt"]
+				}
+			}
+		},
+		{
+			type: "function",
+			function: {
+				name: "perform_google_search",
+				description: "Lakukan pencarian Google untuk info terkini/real-time (berita, cuaca, info publik, fakta terbaru). Gunakan saat user tanya hal yang butuh akses internet.",
+				parameters: {
+					type: "object",
+					properties: {
+						query: {
+							type: "string",
+							description: "Query pencarian yang spesifik"
+						}
+					},
+					required: ["query"]
+				}
+			}
+		}
+	];
 
 	try {
-		const response = await bot.geminiApi.models.generateContent({
+		const completion = await bot.openai.chat.completions.create({
 			model: modelName,
-			contents: contents,
-			config: generationConfig,
+			messages: messages,
+			temperature: 0.8,
+			tools: tools,
+			tool_choice: "auto",
 		});
 
+		const responseMessage = completion.choices[0].message;
+
 		// Check if AI wants to call function(s)
-		if (response.functionCalls && response.functionCalls.length > 0) {
-			console.log(`🔧 AI calling ${response.functionCalls.length} function(s):`,
-				response.functionCalls.map(fc => fc.name).join(', '));
+		if (responseMessage.tool_calls) {
+			console.log(`🔧 AI calling ${responseMessage.tool_calls.length} function(s):`,
+				responseMessage.tool_calls.map(fc => fc.function.name).join(', '));
+
+			// Map OpenAI tool_calls to our internal functionCalls format
+			// Our internal format expects: { name, args }
+			// OpenAI format: { id, type, function: { name, arguments } }
+			const functionCalls = responseMessage.tool_calls.map(tc => ({
+				name: tc.function.name,
+				args: JSON.parse(tc.function.arguments),
+				id: tc.id // Keep ID if needed for tool_output later (though we currently just execute and reply)
+			}));
 
 			return {
 				type: 'function_call',
-				functionCalls: response.functionCalls
+				functionCalls: functionCalls
 			};
 		}
 
 		// Normal text response
-		if (!response.text) {
+		if (!responseMessage.content) {
 			return "Ups, respons AI kosong. Coba tanyakan lagi.";
 		}
-		return response.text.trim();
+		return responseMessage.content.trim();
 	} catch (error) {
-		console.error("Kesalahan panggilan Gemini Chat API:", error);
+		console.error("Kesalahan panggilan Gemini Chat API (OpenAI SDK):", error);
 		return "Aduh, AI-Haikaru sedang gagal mengingat. Ada apa ya? Coba tanyakan lagi.";
 	}
 }
@@ -147,28 +183,26 @@ export async function getGeminiResponse(
 	userPrompt,
 	modelName = "gemini-flash-latest",
 ) {
-	if (!bot.geminiApi) {
-		console.error("Gemini API tidak diinisialisasi.");
+	if (!bot.openai) {
+		console.error("Gemini API (OpenAI) tidak diinisialisasi.");
 		return "Maaf, fitur AI sedang tidak aktif. Harap hubungi pengembang (Haikal).";
 	}
 
 	const systemInstruction = HELPER_PERSONA;
 
-	const generationConfig = {
-		temperature: 1.7,
-		systemInstruction: systemInstruction,
-	};
-
 	try {
-		const response = await bot.geminiApi.models.generateContent({
+		const completion = await bot.openai.chat.completions.create({
 			model: modelName,
-			contents: userPrompt,
-			config: generationConfig,
+			messages: [
+				{ role: "system", content: systemInstruction },
+				{ role: "user", content: userPrompt }
+			],
+			temperature: 1.7,
 		});
 
-		return response.text.trim();
+		return completion.choices[0].message.content.trim();
 	} catch (error) {
-		console.error("Kesalahan panggilan Gemini API:", error);
+		console.error("Kesalahan panggilan Gemini API (OpenAI SDK):", error);
 		return "Aduh, AI-Haikaru sedang sakit kepala! Coba ulangi sebentar lagi, ya.";
 	}
 }
@@ -177,29 +211,46 @@ export async function getGeminiResponse(
  * Helper function untuk melakukan Google Search via Gemini Grounding
  * Ini dipanggil oleh functionHandler saat AI memilih 'perform_google_search'
  */
+/**
+ * Helper function untuk melakukan Google Search via Gemini Grounding
+ * Ini dipanggil oleh functionHandler saat AI memilih 'perform_google_search'
+ * NOTE: Karena OpenAI SDK tidak support native grounding, kita gunakan fetch langsung ke endpoint Gemini.
+ */
+import fetch from 'node-fetch';
+
 export async function getGroundedResponse(bot, query) {
-	if (!bot.geminiApi) {
-		throw new Error("Gemini API not initialized");
+	if (!bot.geminiApiKey) {
+		throw new Error("Gemini API Key not found");
 	}
 
-	const generationConfig = {
-		temperature: 0.7,
-		tools: [{ googleSearch: {} }], // Hanya aktifkan Google Search
+	const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${bot.geminiApiKey}`;
+
+	const payload = {
+		contents: [{ parts: [{ text: query }] }],
+		tools: [{ googleSearch: {} }], // Native grounding
+		generationConfig: { temperature: 0.7 }
 	};
 
 	try {
-		const response = await bot.geminiApi.models.generateContent({
-			model: "gemini-2.5-flash",
-			contents: [{ role: "user", parts: [{ text: query }] }],
-			config: generationConfig,
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(payload)
 		});
 
-		if (!response.text) {
-			console.warn("Grounded Search: Respons text dari Gemini kosong.");
-			return "Ups, hasil pencarian kosong atau tidak ditemukan."; // Pesan yang lebih user-friendly
+		if (!response.ok) {
+			throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
 		}
 
-		return response.text.trim();
+		const data = await response.json();
+
+		// Extract text from Gemini REST response
+		if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+			return data.candidates[0].content.parts.map(p => p.text).join('').trim();
+		}
+
+		console.warn("Grounded Search: Respons text dari Gemini kosong.", JSON.stringify(data));
+		return "Ups, hasil pencarian kosong atau tidak ditemukan.";
 	} catch (error) {
 		console.error("Grounded Search Error:", error);
 		return `Gagal melakukan pencarian: ${error.message}`;
@@ -211,7 +262,7 @@ export async function getGroundedResponse(bot, query) {
  * Menggunakan mode JSON untuk output terstruktur.
  */
 export async function analyzeEmojiReaction(bot, chatHistory) {
-	if (!bot.geminiApi) return null;
+	if (!bot.openai) return null;
 
 	// Ambil 20 pesan terakhir untuk konteks reaksi
 	const recentHistory = chatHistory.slice(-20);
@@ -235,33 +286,30 @@ Output WAJIB JSON format:
 }
 `;
 
-	const generationConfig = {
-		temperature: 1.0, // Sedikit lebih kreatif untuk variasi emoji
-		responseMimeType: "application/json",
-		systemInstruction: systemInstruction,
-	};
+	const messages = [
+		{ role: "system", content: systemInstruction }
+	];
 
-	const contents = recentHistory.map((msg) => ({
-		role: msg.role === "user" ? "user" : "model",
-		parts: [{ text: msg.text }],
-	}));
+	for (const msg of recentHistory) {
+		const role = msg.role === "model" ? "assistant" : "user";
+		messages.push({ role, content: msg.text });
+	}
 
 	try {
-		const response = await bot.geminiApi.models.generateContent({
+		const completion = await bot.openai.chat.completions.create({
 			model: "gemini-2.0-flash-lite-preview-02-05", // Gunakan model lite untuk hemat token
-			contents: contents,
-			config: generationConfig,
+			messages: messages,
+			temperature: 1.0,
+			response_format: { type: "json_object" }
 		});
 
-		if (!response.text) {
-			return null;
-		}
+		const responseText = completion.choices[0].message.content;
+		if (!responseText) return null;
 
-		const responseText = response.text;
 		const result = JSON.parse(responseText);
 		return result;
 	} catch (error) {
-		console.error("❌ Gagal menganalisis reaksi emoji:", error);
+		console.error("❌ Gagal menganalisis reaksi emoji (OpenAI SDK):", error);
 		return null;
 	}
 }
@@ -271,7 +319,7 @@ Output WAJIB JSON format:
  * Menggunakan model cepat (Flash) untuk keputusan instan.
  */
 export async function analyzeContextIntent(bot, messageBody) {
-	if (!bot.geminiApi) return false;
+	if (!bot.openai) return false;
 
 	const systemInstruction = `
 Kamu adalah AI classifier. Tugasmu hanya satu: Menentukan apakah pesan user membutuhkan ingatan masa lalu (long-term memory) atau konteks percakapan yang panjang.
@@ -284,25 +332,24 @@ Output WAJIB JSON:
 { "requiresMemory": boolean }
 `;
 
-	const generationConfig = {
-		temperature: 0.5,
-		responseMimeType: "application/json",
-		systemInstruction: systemInstruction,
-	};
-
 	try {
-		const response = await bot.geminiApi.models.generateContent({
+		const completion = await bot.openai.chat.completions.create({
 			model: "gemini-2.5-flash",
-			contents: [{ role: "user", parts: [{ text: messageBody }] }],
-			config: generationConfig,
+			messages: [
+				{ role: "system", content: systemInstruction },
+				{ role: "user", content: messageBody }
+			],
+			temperature: 0.5,
+			response_format: { type: "json_object" }
 		});
 
-		if (!response.text) return false;
+		const responseText = completion.choices[0].message.content;
+		if (!responseText) return false;
 
-		const result = JSON.parse(response.text);
+		const result = JSON.parse(responseText);
 		return result.requiresMemory || false;
 	} catch (error) {
-		console.error("⚠️ Gagal analisis intent context:", error.message);
+		console.error("⚠️ Gagal analisis intent context (OpenAI SDK):", error.message);
 		return false; // Default to fast mode on error
 	}
 }

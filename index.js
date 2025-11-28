@@ -3,7 +3,7 @@ const { Client, LocalAuth } = pkg;
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import fs from "fs";
-import { GoogleGenAI } from '@google/genai';
+
 import { puppeteerConfig } from './config/puppeteer.js';
 import { startServer } from './server.js';
 
@@ -16,6 +16,8 @@ const __dirname = dirname(__filename);
 const config = JSON.parse(
     fs.readFileSync(join(__dirname, "config.json"), "utf8"),
 );
+
+import OpenAI from 'openai';
 
 class WhatsAppBot {
     constructor() {
@@ -33,7 +35,18 @@ class WhatsAppBot {
 
         if (process.env.GEMINI_API_KEY) {
             this.geminiApiKey = process.env.GEMINI_API_KEY;
-            this.geminiApi = new GoogleGenAI({ apiKey: this.geminiApiKey });
+            // Initialize OpenAI client pointing to Google's Gemini endpoint
+            this.openai = new OpenAI({
+                apiKey: this.geminiApiKey,
+                baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+            });
+            // Keep the property name 'geminiApi' but set it to the openai client to minimize refactoring elsewhere initially, 
+            // OR better, use a new property 'openai' and refactor usages. 
+            // The plan says "Refactor handlers... to use OpenAI SDK", so I will use this.openai.
+            // However, to prevent immediate crashes in untouched files, I'll set geminiApi to null or a proxy if needed, 
+            // but since I'm refactoring everything, I'll just set this.openai.
+            // Wait, existing code checks `if (!bot.geminiApi)`. I should probably update that check too.
+            // For now, I will NOT set this.geminiApi to avoid confusion, and I will fix the checks in the handlers.
         }
     }
 
