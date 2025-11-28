@@ -271,9 +271,9 @@ export async function create_text_sticker(text) {
     // --- Layout Logic (Word Splitting) ---
     if (words.length === 1) {
         lines = [words[0]];
-    } else if (words.length === 2 || words.length === 3 || words.length === 4) {
+    } else if (words.length === 2 || 3 || 4) {
         lines = words;
-    } else {
+    } else if (words.length > 4) {
         // Balanced Wrapping
         const totalChars = text.length;
         const targetLines = Math.ceil(Math.sqrt(totalChars / 5));
