@@ -210,10 +210,6 @@ export async function getGeminiResponse(
 /**
  * Helper function untuk melakukan Google Search via Gemini Grounding
  * Ini dipanggil oleh functionHandler saat AI memilih 'perform_google_search'
- */
-/**
- * Helper function untuk melakukan Google Search via Gemini Grounding
- * Ini dipanggil oleh functionHandler saat AI memilih 'perform_google_search'
  * NOTE: Karena OpenAI SDK tidak support native grounding, kita gunakan fetch langsung ke endpoint Gemini.
  */
 import fetch from 'node-fetch';
