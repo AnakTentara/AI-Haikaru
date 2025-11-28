@@ -71,14 +71,13 @@ export async function get_bot_info(bot, message, chat) {
  */
 
 async function startTiming() {
-    const startTime = Date.now();
-    return startTime;
+    const startTiming = await Date.now();
+    return startTiming;
 }
 
 export async function check_ping(bot, message) {
-    const startTime = startTiming();
-
-    const latency = Date.now() - startTime;
+    const startTime = await startTiming();
+    const latency = await Date.now() - startTime;
 
     return {
         latency: latency,
@@ -142,111 +141,61 @@ export async function tag_everyone(bot, message, chat) {
     }
 
     const participants = chat.participants;
-    const mentions = participants.map((p) => p.id._serialized);
-    const mentionText = participants.map(p => `@${p.id.user}`).join(' ');
-
-    return {
-        mentions: mentions,
-        text: mentionText
-    };
-}
-
-/**
- * Analyze prompt to determine optimal image dimensions
- * @param {string} prompt - The image description
- * @returns {Promise<{width: number, height: number, orientation: string}>}
- */
-async function analyzeDimensions(prompt) {
-    // Default: 1:1 ratio, 4K (3840x3840)
-    const defaultDimensions = {
-        width: 3840,
-        height: 3840,
-        orientation: 'square'
-    };
-
-    // Common keywords for landscape
-    const landscapeKeywords = ['landscape', 'panorama', 'wide', 'horizon', 'cityscape', 'scenery', 'vista', 'banner', 'cover', 'wallpaper'];
-    // Common keywords for portrait
-    const portraitKeywords = ['portrait', 'tall', 'vertical', 'person', 'model', 'standing', 'selfie', 'poster'];
-
-    // Check for explicit landscape hints
-    const isLandscape = landscapeKeywords.some(keyword => prompt.toLowerCase().includes(keyword));
-    // Check for explicit portrait hints
-    const isPortrait = portraitKeywords.some(keyword => prompt.toLowerCase().includes(keyword));
-
-    if (isLandscape && !isPortrait) {
-        // 16:9 landscape, 4K (3840x2160)
-        return {
-            width: 3840,
-            height: 2160,
-            orientation: 'landscape'
-        };
-    } else if (isPortrait && !isLandscape) {
-        // 9:16 portrait, 4K (2160x3840)
-        return {
-            width: 2160,
-            height: 3840,
-            orientation: 'portrait'
-        };
-    }
-
-    // Default to square
-    return defaultDimensions;
-}
-
-/**
- * Generate image dari prompt
- * Akan enhance prompt terlebih dahulu, lalu request ke API
- */
-export async function generate_image(prompt) {
-    console.log(`🎨 Generating image for: "${prompt}"`);
-    
-    // Import getGeminiResponse here to avoid circular dependency
-    const { getGeminiResponse } = await import('./geminiProcessor.js');
-
-    // Step 1: Enhance the prompt for better quality
-    const enhanceSystemPrompt = `You are a prompt engineer for AI image generation. Your task is to transform a simple image description into a detailed, high-quality prompt that will produce stunning visuals.
-
-Rules:
-1. Keep the core concept from the user's request
-2. Add artistic details (lighting, composition, style, mood)
-3. Specify quality keywords (highly detailed, 4K, professional, cinematic)
-4. Keep it under 200 words
-5. Output ONLY the enhanced prompt, no explanation
-
-Example:
-Input: "sunset beach"
-Output: "A breathtaking sunset over a pristine tropical beach, golden hour lighting casting warm orange and pink hues across the sky, gentle waves lapping at the shore, silhouettes of palm trees swaying in the breeze, highly detailed, cinematic composition, professional photography, 4K quality"`;
-
-    let enhancedPrompt = prompt;
-    try {
-        // Use a simple gemini call to enhance the prompt
-        // We'll use the secondary API if available for cost savings
-        // Note: getGeminiResponse already handles bot.openai vs bot.openai2
-        const enhancement = await getGeminiResponse(null, `Transform this image prompt: "${prompt}"`);
-        if (enhancement && enhancement.length > 0) {
-            enhancedPrompt = enhancement;
-            console.log(`✨ Enhanced prompt: "${enhancedPrompt}"`);
-        }
-    } catch (error) {
-        console.warn('⚠️ Failed to enhance prompt, using original:', error.message);
-    }
-
-    // Step 2: Analyze dimensions based on prompt
-    const dimensions = await analyzeDimensions(prompt);
-    console.log(`📐 Detected orientation: ${dimensions.orientation} (${dimensions.width}x${dimensions.height})`);
-
-    // Step 3: Generate the image using Pollinations.ai
-    try {
-        const encodedPrompt = encodeURIComponent(enhancedPrompt);
-        const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&model=flux&nologo=true`;
-        
-        console.log(`🌐 Requesting image from: ${url}`);
+    const mentions = participants.map((p)ux&nologo=true`;
 
         const response = await fetch(url);
-        
+
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(`HTTP Error: ${respon        mentionText: mentionText,
+        participantCount: participants.length,
+        groupName: chat.name
+    };
+}
+
+export async function generate_image(bot, prompt) {
+    try {
+        console.log(`🎨 Generating image with Pollinations (Free): "${prompt}"`);
+
+        let enhancedPrompt = prompt;
+
+        // Enhance prompt using AI if available
+        const openaiClient = bot.openai2 || bot.openai; // Use secondary key for cost savings
+        if (openaiClient) {
+            try {
+                console.log("✨ Enhancing prompt with AI...");
+                const enhancementResponse = await openaiClient.chat.completions.create({
+                    model: "gemini-2.5-flash", // Use a fast model for this
+                    messages: [
+                        {
+                            role: "system",
+                            content: "You are an expert prompt engineer for AI image generation. Your task is to take a short user prompt and expand it into a detailed, high-quality, descriptive paragraph (at least 3-4 sentences) suitable for generating a stunning image. Focus on lighting, texture, mood, and composition. Output ONLY the enhanced prompt, no intro/outro."
+                        },
+                        { role: "user", content: prompt }
+                    ],
+                    temperature: 1.4,
+                });
+
+                if (enhancementResponse.choices && enhancementResponse.choices[0] && enhancementResponse.choices[0].message) {
+                    enhancedPrompt = enhancementResponse.choices[0].message.content.trim();
+                    console.log(`✨ Enhanced Prompt: "${enhancedPrompt}"`);
+                }
+            } catch (enhancementError) {
+                console.warn("⚠️ Failed to enhance prompt, using original:", enhancementError.message);
+            }
+        }
+
+        // Pollinations.ai - Free, No Key
+        // URL format: https://image.pollinations.ai/prompt/{prompt}?width={width}&height={height}&model={model}&nologo=true
+        const encodedPrompt = encodeURIComponent(enhancedPrompt);
+        // Using 'flux' model for better quality, or 'any' to let it decide. 'flux' is popular now.
+        const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&model=flux&nologo=true`;
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+        }
+se.status} ${response.statusText}`);
         }
 
         // node-fetch v3 uses arrayBuffer()
@@ -269,7 +218,6 @@ Output: "A breathtaking sunset over a pristine tropical beach, golden hour light
             imagePath: tempPath,
             prompt: enhancedPrompt, // Return the enhanced prompt so user knows
             originalPrompt: prompt,
-            dimensions: dimensions,
             size: buffer.length
         };
     } catch (error) {
