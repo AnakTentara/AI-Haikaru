@@ -260,7 +260,7 @@ export async function create_text_sticker(text) {
 
     // Configuration
     const padding = 30;
-    const canvasSize = 512;
+    const canvasSize = 256;
     const maxWidth = canvasSize - (padding * 2);
     const maxHeight = canvasSize - (padding * 2);
 
@@ -383,9 +383,8 @@ export async function create_image_sticker(media) {
     // Decode base64 image
     const buffer = Buffer.from(media.data, 'base64');
 
-    // Resize to WhatsApp sticker specs (512x512, maintain aspect ratio)
     const resizedBuffer = await sharp(buffer)
-        .resize(512, 512, {
+        .resize(256, 256, {
             fit: 'contain',
             background: { r: 255, g: 255, b: 255, alpha: 0 }
         })
