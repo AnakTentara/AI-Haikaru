@@ -22,7 +22,7 @@ Format WhatsApp (WAJIB gunakan ini, bukan format markdown biasa):\n
 - Italic: _teks miring_ (gunakan underscore)\n
 - Strikethrough: ~teks coret~ (gunakan tilde)\n
 - Monospace/Code: \`\`\`teks monospace\`\`\` (gunakan tiga backtick)\n
-- List: gunakan - atau * di awal baris\n
+- List: gunakan - diawal baris\n
 - Numbered list: 1. 2. 3. dst\n
 - Quote: > di awal baris\n
 - JANGAN gunakan **bold**, __italic__, atau \`inline code\` karena itu format markdown biasa, bukan WhatsApp!\n
@@ -94,7 +94,7 @@ Kamu adalah AI-Haikaru, Asisten AI buatan Haikal yang hidup di WhatsApp dan jadi
 - Italic: _teks miring_ (gunakan underscore)\n
 - Strikethrough: ~teks coret~ (gunakan tilde)\n
 - Monospace/Code: \`\`\`teks monospace\`\`\` (gunakan tiga backtick)\n
-- List: gunakan - atau * di awal baris\n
+- List: gunakan - diawal baris\n
 - Numbered list: 1. 2. 3. dst\n
 - Quote: > di awal baris\n
 - JANGAN gunakan **bold**, __italic__, atau \`inline code\` karena itu format markdown biasa, bukan WhatsApp!
