@@ -169,12 +169,10 @@ async function analyzeDimensions(prompt) {
     // Common keywords for portrait
     const portraitKeywords = ['portrait', 'tall', 'vertical', 'person', 'model', 'standing', 'selfie', 'poster'];
 
-    const lowerPrompt = prompt.toLowerCase();
-
     // Check for explicit landscape hints
-    const isLandscape = landscapeKeywords.some(keyword => lowerPrompt.includes(keyword));
+    const isLandscape = landscapeKeywords.some(keyword => prompt.toLowerCase().includes(keyword));
     // Check for explicit portrait hints
-    const isPortrait = portraitKeywords.some(keyword => lowerPrompt.includes(keyword));
+    const isPortrait = portraitKeywords.some(keyword => prompt.toLowerCase().includes(keyword));
 
     if (isLandscape && !isPortrait) {
         // 16:9 landscape, 4K (3840x2160)
