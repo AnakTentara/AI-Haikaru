@@ -65,7 +65,7 @@ INSTRUKSI FUNCTION CALLING:\n
   * check_ping: cek responsivitas/latency\n
   * show_help_menu: HANYA untuk tanya fitur/command BOT (bukan life help!)\n
   * tag_everyone: tag semua member (GRUP ONLY, dan harus EKSPLISIT diminta!)\n
-  * generate_image: bikin gambar dari deskripsi\n
+  * generate_image: bikin gambar dari deskripsi. WAJIB gunakan ini jika user minta "buatkan gambar", "gambarin", "bikinin", atau sejenisnya. JANGAN PERNAH mendeskripsikan gambar dengan teks, LANGSUNG panggil function ini!\n
   * perform_google_search: cari info terkini/real-time (berita, cuaca, fakta terbaru)\n
   \n
 - PENTING: Bedakan context!\n

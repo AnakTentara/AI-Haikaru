@@ -167,7 +167,6 @@ export async function generate_image(bot, prompt) {
             prompt: prompt,
             model: "grok-2-image-1212",
             response_format: "b64_json",
-            size: "1024x1024", // Standard size
             n: 1
         };
 
