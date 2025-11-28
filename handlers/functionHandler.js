@@ -254,50 +254,102 @@ export async function perform_google_search(bot, query) {
 /**
  * Create text-based sticker
  * Generate image from text with white background, black text, word wrapping, and padding
+ * Improved layout for 1-4 words and dynamic font sizing
  */
 export async function create_text_sticker(text) {
     console.log(`🎨 Creating text sticker: "${text}"`);
 
     // Configuration
-    const padding = 10;
-    const maxWidth = 512 - (padding * 2);  // 512px is WhatsApp sticker size
-    const fontSize = text.length > 100 ? 24 : text.length > 50 ? 32 : 40;
-    const lineHeight = fontSize * 1.4;
+    const padding = 20;
+    const canvasSize = 512;
+    const maxWidth = canvasSize - (padding * 2);
+    const maxHeight = canvasSize - (padding * 2);
 
-    // Word wrapping logic
-    const words = text.split(' ');
-    const lines = [];
-    let currentLine = '';
+    // Split text into words
+    const words = text.trim().split(/\s+/);
+    let lines = [];
 
-    // Estimate character width (rough approximation)
-    const charWidth = fontSize * 0.6;
-    const maxCharsPerLine = Math.floor(maxWidth / charWidth);
+    // --- Layout Logic ---
+    if (words.length === 1) {
+        // 1 Word: 1 Line (Huge)
+        lines = [words[0]];
+    } else if (words.length === 2) {
+        // 2 Words: 2 Lines (Stacked)
+        lines = words;
+    } else if (words.length === 3) {
+        // 3 Words: 3 Lines (Stacked)
+        lines = words;
+    } else if (words.length === 4) {
+        // 4 Words: 2 Lines (2 words per line)
+        lines = [
+            `${words[0]} ${words[1]}`,
+            `${words[2]} ${words[3]}`
+        ];
+    } else {
+        // > 4 Words: Balanced Wrapping
+        // Estimate target chars per line based on total length
+        const totalChars = text.length;
+        const targetLines = Math.ceil(Math.sqrt(totalChars / 5)); // Heuristic
+        const targetCharsPerLine = Math.ceil(totalChars / targetLines);
 
-    for (const word of words) {
-        const testLine = currentLine ? `${currentLine} ${word}` : word;
-
-        if (testLine.length <= maxCharsPerLine) {
-            currentLine = testLine;
-        } else {
-            if (currentLine) lines.push(currentLine);
-            currentLine = word;
+        let currentLine = '';
+        for (const word of words) {
+            const testLine = currentLine ? `${currentLine} ${word}` : word;
+            if (testLine.length <= targetCharsPerLine || !currentLine) {
+                currentLine = testLine;
+            } else {
+                lines.push(currentLine);
+                currentLine = word;
+            }
         }
+        if (currentLine) lines.push(currentLine);
     }
-    if (currentLine) lines.push(currentLine);
 
-    // Calculate image height based on number of lines
-    const textHeight = lines.length * lineHeight;
-    const imageHeight = Math.max(512, textHeight + (padding * 2));
+    // --- Dynamic Font Size Calculation ---
+    // We want to maximize font size to fill the area
+    // Font Aspect Ratio Heuristic: Width ~= 0.55 * Height (for bold sans-serif)
+    // Line Height = 1.1 * FontSize
+
+    const maxLineChars = Math.max(...lines.map(l => l.length));
+    const numLines = lines.length;
+    const fontAspectRatio = 0.55;
+    const lineHeightRatio = 1.1;
+
+    // Calculate max font size constrained by width
+    const fontSizeByWidth = maxWidth / (maxLineChars * fontAspectRatio);
+
+    // Calculate max font size constrained by height
+    // Total Height = numLines * fontSize * lineHeightRatio
+    const fontSizeByHeight = maxHeight / (numLines * lineHeightRatio);
+
+    // Choose the smaller constraint
+    let fontSize = Math.min(fontSizeByWidth, fontSizeByHeight);
+
+    // Clamping
+    fontSize = Math.min(fontSize, 180); // Max size
+    fontSize = Math.max(fontSize, 30);  // Min size
+
+    const lineHeight = fontSize * lineHeightRatio;
+    const totalTextHeight = numLines * lineHeight;
+
+    // --- Vertical Centering ---
+    // Start Y is the baseline of the first line
+    // Center of text block should be at canvas center (256)
+    // Top of text block = (512 - totalTextHeight) / 2
+    // First baseline = Top + fontSize (approx, depends on font metrics, usually 0.8-0.9em)
+
+    // Adjusting baseline offset slightly for visual centering
+    const startY = (canvasSize - totalTextHeight) / 2 + (fontSize * 0.8);
 
     // Create SVG with text
     const svgText = lines.map((line, i) => {
-        const y = padding + (i * lineHeight) + fontSize;
-        return `<text x="50%" y="${y}" text-anchor="middle" font-size="${fontSize}" font-family="Arial, sans-serif" fill="#000000">${escapeXml(line)}</text>`;
+        const y = startY + (i * lineHeight);
+        return `<text x="50%" y="${y}" text-anchor="middle" font-size="${fontSize}" font-family="Arial, sans-serif" font-weight="bold" fill="#000000">${escapeXml(line)}</text>`;
     }).join('\n');
 
     const svg = `
-        <svg width="512" height="${imageHeight}" xmlns="http://www.w3.org/2000/svg">
-            <rect width="512" height="${imageHeight}" fill="#FFFFFF"/>
+        <svg width="${canvasSize}" height="${canvasSize}" xmlns="http://www.w3.org/2000/svg">
+            <rect width="${canvasSize}" height="${canvasSize}" fill="#FFFFFF"/>
             ${svgText}
         </svg>
     `;
@@ -311,7 +363,7 @@ export async function create_text_sticker(text) {
     const tempPath = `.local/text_sticker_${Date.now()}.png`;
 
     await sharp(Buffer.from(svg))
-        .resize(512, 512, {
+        .resize(canvasSize, canvasSize, {
             fit: 'contain',
             background: { r: 255, g: 255, b: 255, alpha: 1 }
         })
