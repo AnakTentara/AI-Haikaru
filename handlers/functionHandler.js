@@ -271,7 +271,11 @@ export async function create_text_sticker(text) {
     // --- Layout Logic (Word Splitting) ---
     if (words.length === 1) {
         lines = [words[0]];
-    } else if (words.length === 2 || 3 || 4) {
+    } else if (words.length === 2) {
+        lines = words;
+    } else if (words.length === 3) {
+        lines = words;
+    } else if (words.length === 4) {
         lines = words;
     } else if (words.length > 4) {
         // Balanced Wrapping
