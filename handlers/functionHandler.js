@@ -4,6 +4,21 @@ import fs from 'fs';
 import sharp from 'sharp';
 
 /**
+ * Helper function to escape XML special characters
+ */
+function escapeXml(unsafe) {
+    return unsafe.replace(/[<>&'"]/g, function (c) {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
+        }
+    });
+}
+
+/**
  * Get bot info & statistics
  * Digunakan saat user tanya tentang bot, nomor mereka, info grup, atau statistik
  */
@@ -256,6 +271,12 @@ export async function perform_google_search(bot, query) {
  * Improved layout: Justified text (left-aligned with spacing), Vertical Fill, Dynamic Sizing
  */
 export async function create_text_sticker(text) {
+
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        console.error("Error: Invalid or empty text provided for the sticker. Cannot create sticker.");
+        throw new Error("A non-empty string 'text' is required to create a sticker.");
+    }
+
     console.log(`🎨 Creating text sticker: "${text}"`);
 
     // Configuration
@@ -397,20 +418,4 @@ export async function create_image_sticker(media) {
 
     console.log(`✅ Image sticker created`);
     return sticker;
-}
-
-/**
- * Helper function to escape XML special characters
- */
-function escapeXml(unsafe) {
-    return unsafe.replace(/[<>&'"]/g, (c) => {
-        switch (c) {
-            case '<': return '&lt;';
-            case '>': return '&gt;';
-            case '&': return '&amp;';
-            case '\'': return '&apos;';
-            case '"': return '&quot;';
-            default: return c;
-        }
-    });
 }
