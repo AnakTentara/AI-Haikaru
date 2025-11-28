@@ -4,7 +4,7 @@ const { MessageMedia } = pkg;
 import fs from 'fs';
 
 export function formatImageCaption(prompt) {
-    return `Nih gambarnya udah jadi! 🎨✨\n\n_Generated: ${prompt}_`;
+    return `Nih gambarnya udah jadi! 🎨✨\n\n_Generated:\n> ${prompt}_`;
 }
 
 export async function handleImageResponse(message, result) {
