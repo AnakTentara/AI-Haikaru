@@ -154,32 +154,20 @@ export async function generate_image(bot, prompt) {
             throw new Error("Gemini API Key not found");
         }
 
-        console.log(`🎨 Generating image with Gemini: "${prompt}"`);
+        console.log(`🎨 Generating image with Imagen 3: "${prompt}"`);
 
-        // Use direct REST API for image generation model
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${bot.geminiApiKey}`;
-
-        // Note: gemini-2.5-flash might not be the image generation model. 
-        // The previous code used "gemini-2.5-flash-image". 
-        // If that's a valid model, we use it. If not, we might need "imagen-3.0-generate-001" or similar.
-        // Assuming "gemini-2.5-flash" can generate images or the user has access to a specific model.
-        // I will use the model name from the previous code: "gemini-2.5-flash-image" but check if it needs specific endpoint.
-        // Actually, for Imagen 3/Image generation, the endpoint is usually different or it's a specific model capability.
-        // Let's try to use the same model name as before but via REST.
-
-        const modelName = "gemini-2.5-flash"; // Fallback or specific model
-        // If the user was using "gemini-2.5-flash-image", I'll stick to that if I can.
-        // But for safety, I'll use the one that works for text-to-image if known, or just try the previous one.
+        // Use Imagen 3 model via REST API
+        // Endpoint: https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${bot.geminiApiKey}`;
 
         const payload = {
-            contents: [{ parts: [{ text: prompt }] }],
-            // Request image generation via specific config if supported, or just prompt.
-            // Gemini 2.5 Flash might support image generation natively via prompt.
+            instances: [
+                { prompt: prompt }
+            ],
+            parameters: {
+                sampleCount: 1
+            }
         };
-
-        // However, standard generateContent might not return image bytes directly in 'inlineData' unless requested.
-        // The previous code accessed `response.candidates[0].content.parts[0].inlineData`.
-        // This implies the model returns an image part.
 
         const response = await fetch(url, {
             method: 'POST',
@@ -188,27 +176,27 @@ export async function generate_image(bot, prompt) {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+            const errorText = await response.text();
+            throw new Error(`HTTP Error: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
         const data = await response.json();
 
-        if (!data.candidates || data.candidates.length === 0) {
-            throw new Error("No candidates returned");
+        if (!data.predictions || data.predictions.length === 0) {
+            console.error("Imagen Response:", JSON.stringify(data, null, 2));
+            throw new Error("No predictions returned");
         }
 
-        const part = data.candidates[0].content.parts[0];
+        const prediction = data.predictions[0];
 
-        // Check for inline data (image)
-        if (!part.inlineData || !part.inlineData.data) {
-            // If text is returned instead, maybe it refused or generated text.
-            if (part.text) {
-                throw new Error(`AI returned text instead of image: ${part.text}`);
-            }
-            throw new Error("Invalid image response format");
+        // Imagen usually returns bytesBase64 or similar
+        if (!prediction.bytesBase64) {
+            // Check if it returned something else
+            console.error("Invalid Prediction Format:", JSON.stringify(prediction, null, 2));
+            throw new Error("Invalid image response format from Imagen");
         }
 
-        const buffer = Buffer.from(part.inlineData.data, 'base64');
+        const buffer = Buffer.from(prediction.bytesBase64, 'base64');
 
         // Ensure .local directory exists
         if (!fs.existsSync('.local')) {
