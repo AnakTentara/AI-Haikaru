@@ -150,28 +150,33 @@ export async function tag_everyone(bot, message, chat) {
 
 export async function generate_image(bot, prompt) {
     try {
-        if (!bot.geminiApiKey) {
-            throw new Error("Gemini API Key not found");
+        // Check for XAI_API_KEY (preferred) or fall back to GEMINI if not set (but user specifically asked for Grok)
+        const apiKey = bot.xaiApiKey || process.env.XAI_API_KEY;
+
+        if (!apiKey) {
+            throw new Error("XAI_API_KEY not found. Please add it to your .env file.");
         }
 
-        console.log(`🎨 Generating image with Imagen 3: "${prompt}"`);
+        console.log(`🎨 Generating image with Grok (xAI): "${prompt}"`);
 
-        // Use Imagen 3 model via REST API
-        // Endpoint: https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${bot.geminiApiKey}`;
+        // Use xAI Grok API for image generation
+        // Endpoint: https://api.x.ai/v1/images/generations
+        const url = `https://api.x.ai/v1/images/generations`;
 
         const payload = {
-            instances: [
-                { prompt: prompt }
-            ],
-            parameters: {
-                sampleCount: 1
-            }
+            prompt: prompt,
+            model: "grok-2-image-1212",
+            response_format: "b64_json",
+            size: "1024x1024", // Standard size
+            n: 1
         };
 
         const response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
             body: JSON.stringify(payload)
         });
 
@@ -182,21 +187,21 @@ export async function generate_image(bot, prompt) {
 
         const data = await response.json();
 
-        if (!data.predictions || data.predictions.length === 0) {
-            console.error("Imagen Response:", JSON.stringify(data, null, 2));
-            throw new Error("No predictions returned");
+        // Check for data array (standard OpenAI format which xAI follows)
+        if (!data.data || data.data.length === 0) {
+            console.error("Grok Response:", JSON.stringify(data, null, 2));
+            throw new Error("No image data returned from Grok");
         }
 
-        const prediction = data.predictions[0];
+        const imageObj = data.data[0];
 
-        // Imagen usually returns bytesBase64 or similar
-        if (!prediction.bytesBase64) {
-            // Check if it returned something else
-            console.error("Invalid Prediction Format:", JSON.stringify(prediction, null, 2));
-            throw new Error("Invalid image response format from Imagen");
+        // xAI returns b64_json
+        if (!imageObj.b64_json) {
+            console.error("Invalid Grok Format:", JSON.stringify(imageObj, null, 2));
+            throw new Error("Invalid image response format from Grok (missing b64_json)");
         }
 
-        const buffer = Buffer.from(prediction.bytesBase64, 'base64');
+        const buffer = Buffer.from(imageObj.b64_json, 'base64');
 
         // Ensure .local directory exists
         if (!fs.existsSync('.local')) {

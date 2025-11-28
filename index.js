@@ -48,6 +48,10 @@ class WhatsAppBot {
             // Wait, existing code checks `if (!bot.geminiApi)`. I should probably update that check too.
             // For now, I will NOT set this.geminiApi to avoid confusion, and I will fix the checks in the handlers.
         }
+
+        if (process.env.XAI_API_KEY) {
+            this.xaiApiKey = process.env.XAI_API_KEY;
+        }
     }
 
     async loadCommands() {
