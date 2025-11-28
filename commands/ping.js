@@ -14,6 +14,10 @@ export default {
   prefixRequired: true,
   triggers: [".ping"],
   async execute(message, args, bot) {
+    // Send first message
+    await message.reply("🏓 Pinging...");
+
+    // Get ping data and send second message
     const data = await check_ping(bot, message);
     const responseText = formatPingMessage(data);
     await message.reply(responseText);

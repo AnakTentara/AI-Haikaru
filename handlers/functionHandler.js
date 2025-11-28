@@ -71,8 +71,8 @@ export async function get_bot_info(bot, message, chat) {
  */
 export async function check_ping(bot, message) {
     const startTime = Date.now();
-    // Simulate network check
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await message.reply("🏓 Pinging...");
+
     const latency = Date.now() - startTime;
 
     return {
