@@ -26,7 +26,9 @@ async function handleFunctionCalls(bot, message, chat, chatHistory, chatId, func
     show_help_menu,
     tag_everyone,
     generate_image,
-    perform_google_search
+    perform_google_search,
+    create_text_sticker,
+    create_image_sticker
   } = await import('../handlers/functionHandler.js');
 
   for (const call of functionCalls) {
@@ -103,6 +105,62 @@ async function handleFunctionCalls(bot, message, chat, chatHistory, chatId, func
           await message.reply(responseText);
           Logger.outgoing('perform_google_search', 'Search results sent to user');
           chatHistory.push({ role: "model", text: responseText });
+          break;
+
+        case 'create_text_sticker':
+          Logger.function('create_text_sticker', `Creating text sticker: ${call.args.text}`);
+          await message.reply("⏳ Tunggu sebentar ya, lagi bikin sticker dari text...");
+
+          try {
+            const imagePath = await create_text_sticker(call.args.text);
+            const sticker = MessageMedia.fromFilePath(imagePath);
+            await message.reply(sticker, undefined, { sendMediaAsSticker: true });
+            Logger.outgoing('create_text_sticker', 'Text sticker sent to user');
+            chatHistory.push({ role: "model", text: `[Sent text sticker: "${call.args.text}"]` });
+
+            // Cleanup temp file
+            try {
+              fs.unlinkSync(imagePath);
+            } catch (e) {
+              Logger.error('create_text_sticker', 'Failed to delete temp file', { error: e.message });
+            }
+          } catch (error) {
+            Logger.error('create_text_sticker', 'Failed to create text sticker', { error: error.message });
+            await message.reply(`❌ Gagal bikin sticker: ${error.message}`);
+          }
+          break;
+
+        case 'create_image_sticker':
+          Logger.function('create_image_sticker', 'Creating image sticker...');
+
+          // Determine media source (quoted or current message)
+          let mediaToConvert = null;
+          if (message.hasMedia) {
+            mediaToConvert = await message.downloadMedia();
+          } else if (message.hasQuotedMsg) {
+            const quotedMsg = await message.getQuotedMessage();
+            if (quotedMsg.hasMedia) {
+              mediaToConvert = await quotedMsg.downloadMedia();
+            }
+          }
+
+          if (!mediaToConvert || !mediaToConvert.mimetype.startsWith('image/')) {
+            await message.reply("❌ Harap kirim gambar atau reply gambar untuk dijadikan sticker!");
+            chatHistory.push({ role: "model", text: "[Error: No image found for sticker conversion]" });
+            break;
+          }
+
+          await message.reply("⏳ Tunggu sebentar ya, lagi bikin sticker...");
+
+          try {
+            const sticker = await create_image_sticker(mediaToConvert);
+            await message.reply(sticker, undefined, { sendMediaAsSticker: true });
+            Logger.outgoing('create_image_sticker', 'Image sticker sent to user');
+            chatHistory.push({ role: "model", text: "[Sent image sticker]" });
+          } catch (error) {
+            Logger.error('create_image_sticker', 'Failed to create image sticker', { error: error.message });
+            await message.reply(`❌ Gagal bikin sticker: ${error.message}`);
+          }
           break;
       }
 

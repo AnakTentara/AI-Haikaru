@@ -30,7 +30,7 @@ export class Logger {
     }
 
     static incoming(category, message, data = null) {
-        this.formatLog('📥 INCOMING', category, message, data);
+        this.formatLog('\n📥 INCOMING', category, message, data);
     }
 
     static outgoing(category, message, data = null) {
