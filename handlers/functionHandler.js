@@ -69,11 +69,15 @@ export async function get_bot_info(bot, message, chat) {
  * Check bot responsiveness (ping)
  * Digunakan saat user tanya "masih hidup?", "cek ping", "cepat ga?", dll
  */
+async function checkFirstping(bot, message) {
+    const startTime = await Date.now();
+    return startTime;
+}
+
 export async function check_ping(bot, message) {
-    const startTime = Date.now();
-    // Simulate network check
-    await new Promise(resolve => setTimeout(resolve, 10));
-    const latency = Date.now() - startTime;
+    const start = await checkFirstping();
+
+    const latency = await Date.now() - start;
 
     return {
         latency: latency,
@@ -142,55 +146,6 @@ export async function tag_everyone(bot, message, chat) {
 
     return {
         mentions: mentions,
-        mentionText: mentionText,
-        participantCount: participants.length,
-        groupName: chat.name
-    };
-}
-
-export async function generate_image(bot, prompt) {
-    try {
-        console.log(`🎨 Generating image with Pollinations (Free): "${prompt}"`);
-
-        let enhancedPrompt = prompt;
-
-        // Enhance prompt using AI if available
-        const openaiClient = bot.openai2 || bot.openai; // Use secondary key for cost savings
-        if (openaiClient) {
-            try {
-                console.log("✨ Enhancing prompt with AI...");
-                const enhancementResponse = await openaiClient.chat.completions.create({
-                    model: "gemini-2.5-flash", // Use a fast model for this
-                    messages: [
-                        {
-                            role: "system",
-                            content: "You are an expert prompt engineer for AI image generation. Your task is to take a short user prompt and expand it into a detailed, high-quality, descriptive paragraph (at least 3-4 sentences) suitable for generating a stunning image. Focus on lighting, texture, mood, and composition. Output ONLY the enhanced prompt, no intro/outro."
-                        },
-                        { role: "user", content: prompt }
-                    ],
-                    temperature: 1.3,
-                });
-
-                if (enhancementResponse.choices && enhancementResponse.choices[0] && enhancementResponse.choices[0].message) {
-                    enhancedPrompt = enhancementResponse.choices[0].message.content.trim();
-                    console.log(`✨ Enhanced Prompt: "${enhancedPrompt}"`);
-                }
-            } catch (enhancementError) {
-                console.warn("⚠️ Failed to enhance prompt, using original:", enhancementError.message);
-            }
-        }
-
-        // Pollinations.ai - Free, No Key
-        // URL format: https://image.pollinations.ai/prompt/{prompt}?width={width}&height={height}&model={model}&nologo=true
-        const encodedPrompt = encodeURIComponent(enhancedPrompt);
-        // Using 'flux' model for better quality, or 'any' to let it decide. 'flux' is popular now.
-        const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&model=flux&nologo=true`;
-
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
-        }
 
         // node-fetch v3 uses arrayBuffer()
         const arrayBuffer = await response.arrayBuffer();

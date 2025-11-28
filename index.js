@@ -31,7 +31,7 @@ class WhatsAppBot {
         this.events = new Map();
         this.prefix = config.prefix;
         this.config = config;
-        this.version = config.version || "1.7.0"; // Fallback to 1.7.0 if not in config
+        this.version = config.version;
 
         if (process.env.GEMINI_API_KEY) {
             this.geminiApiKey = process.env.GEMINI_API_KEY;
