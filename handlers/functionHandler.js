@@ -250,11 +250,10 @@ export async function perform_google_search(bot, query) {
         timestamp: new Date().toISOString()
     };
 }
-
 /**
  * Create text-based sticker
  * Generate image from text with white background, black text, word wrapping, and padding
- * Improved layout for 1-4 words and dynamic font sizing
+ * Improved layout: Justified text (left-aligned with spacing), Vertical Fill, Dynamic Sizing
  */
 export async function create_text_sticker(text) {
     console.log(`🎨 Creating text sticker: "${text}"`);
@@ -269,27 +268,22 @@ export async function create_text_sticker(text) {
     const words = text.trim().split(/\s+/);
     let lines = [];
 
-    // --- Layout Logic ---
+    // --- Layout Logic (Word Splitting) ---
     if (words.length === 1) {
-        // 1 Word: 1 Line (Huge)
         lines = [words[0]];
     } else if (words.length === 2) {
-        // 2 Words: 2 Lines (Stacked)
         lines = words;
     } else if (words.length === 3) {
-        // 3 Words: 3 Lines (Stacked)
         lines = words;
     } else if (words.length === 4) {
-        // 4 Words: 2 Lines (2 words per line)
         lines = [
             `${words[0]} ${words[1]}`,
             `${words[2]} ${words[3]}`
         ];
     } else {
-        // > 4 Words: Balanced Wrapping
-        // Estimate target chars per line based on total length
+        // Balanced Wrapping
         const totalChars = text.length;
-        const targetLines = Math.ceil(Math.sqrt(totalChars / 5)); // Heuristic
+        const targetLines = Math.ceil(Math.sqrt(totalChars / 5));
         const targetCharsPerLine = Math.ceil(totalChars / targetLines);
 
         let currentLine = '';
@@ -306,45 +300,53 @@ export async function create_text_sticker(text) {
     }
 
     // --- Dynamic Font Size Calculation ---
-    // We want to maximize font size to fill the area
-    // Font Aspect Ratio Heuristic: Width ~= 0.55 * Height (for bold sans-serif)
-    // Line Height = 1.1 * FontSize
-
     const maxLineChars = Math.max(...lines.map(l => l.length));
     const numLines = lines.length;
-    const fontAspectRatio = 0.55;
-    const lineHeightRatio = 1.1;
+    const fontAspectRatio = 0.55; // Width / Height
+    const lineHeightRatio = 1.0; // Tighter line height for block effect
 
     // Calculate max font size constrained by width
     const fontSizeByWidth = maxWidth / (maxLineChars * fontAspectRatio);
 
     // Calculate max font size constrained by height
-    // Total Height = numLines * fontSize * lineHeightRatio
     const fontSizeByHeight = maxHeight / (numLines * lineHeightRatio);
 
-    // Choose the smaller constraint
+    // Choose the smaller constraint for the base font size
     let fontSize = Math.min(fontSizeByWidth, fontSizeByHeight);
 
     // Clamping
-    fontSize = Math.min(fontSize, 180); // Max size
-    fontSize = Math.max(fontSize, 30);  // Min size
+    fontSize = Math.min(fontSize, 200); // Max size
+    fontSize = Math.max(fontSize, 40);  // Min size
 
-    const lineHeight = fontSize * lineHeightRatio;
-    const totalTextHeight = numLines * lineHeight;
+    // --- Vertical Distribution ---
+    let linePositions = [];
+    if (numLines === 1) {
+        // Center vertically
+        linePositions.push((canvasSize / 2) + (fontSize * 0.35));
+    } else {
+        // Distribute evenly
+        const bandHeight = maxHeight / numLines;
+        for (let i = 0; i < numLines; i++) {
+            const bandCenter = padding + (i * bandHeight) + (bandHeight / 2);
+            linePositions.push(bandCenter + (fontSize * 0.35));
+        }
+    }
 
-    // --- Vertical Centering ---
-    // Start Y is the baseline of the first line
-    // Center of text block should be at canvas center (256)
-    // Top of text block = (512 - totalTextHeight) / 2
-    // First baseline = Top + fontSize (approx, depends on font metrics, usually 0.8-0.9em)
-
-    // Adjusting baseline offset slightly for visual centering
-    const startY = (canvasSize - totalTextHeight) / 2 + (fontSize * 0.8);
-
-    // Create SVG with text
+    // --- SVG Generation ---
     const svgText = lines.map((line, i) => {
-        const y = startY + (i * lineHeight);
-        return `<text x="50%" y="${y}" text-anchor="middle" font-size="${fontSize}" font-family="Arial, sans-serif" font-weight="bold" fill="#000000">${escapeXml(line)}</text>`;
+        const y = linePositions[i];
+
+        let attributes = `x="${padding}" y="${y}" font-size="${fontSize}" font-family="Arial, sans-serif" font-weight="bold" fill="#000000"`;
+
+        if (line.includes(' ')) {
+            // Full Justify for lines with multiple words
+            attributes += ` text-anchor="start" textLength="${maxWidth}" lengthAdjust="spacing"`;
+        } else {
+            // Left align for single words (standard justify behavior)
+            attributes += ` text-anchor="start"`;
+        }
+
+        return `<text ${attributes}>${escapeXml(line)}</text>`;
     }).join('\n');
 
     const svg = `
