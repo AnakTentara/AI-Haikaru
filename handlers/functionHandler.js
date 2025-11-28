@@ -69,15 +69,11 @@ export async function get_bot_info(bot, message, chat) {
  * Check bot responsiveness (ping)
  * Digunakan saat user tanya "masih hidup?", "cek ping", "cepat ga?", dll
  */
-
-async function startTiming() {
-    const startTiming = await Date.now();
-    return startTiming;
-}
-
 export async function check_ping(bot, message) {
-    const startTime = await startTiming();
-    const latency = await Date.now() - startTime;
+    const startTime = Date.now();
+    // Simulate network check
+    await new Promise(resolve => setTimeout(resolve, 10));
+    const latency = Date.now() - startTime;
 
     return {
         latency: latency,
