@@ -137,15 +137,19 @@ export async function tag_everyone(bot, message, chat) {
     }
 
     const participants = chat.participants;
-    const mentions = participants.map((p)ux&nologo=true`;
+    const mentions = participants.map((p));
 
-        const response = await fetch(url);
+    const response = await fetch(url);
 
-        if (!response.ok) {
-            throw new Error(`HTTP Error: ${respon        mentionText: mentionText,
-        participantCount: participants.length,
-        groupName: chat.name
-    };
+    if (!response.ok) {
+        let data = {
+            mentionText: mentionText,
+            participantCount: participants.length,
+            groupName: chat.name
+        };
+
+        throw new Error(`HTTP Error: ${data}`);
+    }
 }
 
 export async function generate_image(bot, prompt) {
@@ -168,7 +172,7 @@ export async function generate_image(bot, prompt) {
                         },
                         { role: "user", content: prompt }
                     ],
-                    temperature: 1.4,
+                    temperature: 1.3,
                 });
 
                 if (enhancementResponse.choices && enhancementResponse.choices[0] && enhancementResponse.choices[0].message) {
@@ -190,8 +194,6 @@ export async function generate_image(bot, prompt) {
 
         if (!response.ok) {
             throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
-        }
-se.status} ${response.statusText}`);
         }
 
         // node-fetch v3 uses arrayBuffer()
