@@ -40,17 +40,18 @@ class WhatsAppBot {
                 apiKey: this.geminiApiKey,
                 baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
             });
-            // Keep the property name 'geminiApi' but set it to the openai client to minimize refactoring elsewhere initially, 
-            // OR better, use a new property 'openai' and refactor usages. 
-            // The plan says "Refactor handlers... to use OpenAI SDK", so I will use this.openai.
-            // However, to prevent immediate crashes in untouched files, I'll set geminiApi to null or a proxy if needed, 
-            // but since I'm refactoring everything, I'll just set this.openai.
-            // Wait, existing code checks `if (!bot.geminiApi)`. I should probably update that check too.
-            // For now, I will NOT set this.geminiApi to avoid confusion, and I will fix the checks in the handlers.
+            console.log("✅ Primary OpenAI client (GEMINI_API_KEY)");
         }
 
-        if (process.env.XAI_API_KEY) {
-            this.xaiApiKey = process.env.XAI_API_KEY;
+        // Secondary Gemini API Key for cost-saving operations
+        // (emoji reactions, prompt enhancement, etc.)
+        if (process.env.GEMINI_API_KEY_2) {
+            this.geminiApiKey2 = process.env.GEMINI_API_KEY_2;
+            this.openai2 = new OpenAI({
+                apiKey: this.geminiApiKey2,
+                baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+            });
+            console.log("✅ Secondary OpenAI client (GEMINI_API_KEY_2)");
         }
     }
 

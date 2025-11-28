@@ -262,7 +262,10 @@ export async function getGroundedResponse(bot, query) {
  * Menggunakan mode JSON untuk output terstruktur.
  */
 export async function analyzeEmojiReaction(bot, chatHistory) {
-	if (!bot.openai) return null;
+	// Use secondary API key if available for cost savings  
+	const openaiClient = bot.openai2 || bot.openai;
+	if (!openaiClient) return null;
+
 
 	// Ambil 20 pesan terakhir untuk konteks reaksi
 	const recentHistory = chatHistory.slice(-20);
@@ -296,7 +299,7 @@ Output WAJIB JSON format:
 	}
 
 	try {
-		const completion = await bot.openai.chat.completions.create({
+		const completion = await openaiClient.chat.completions.create({
 			model: "gemini-2.0-flash-lite-preview-02-05", // Gunakan model lite untuk hemat token
 			messages: messages,
 			temperature: 1.0,
