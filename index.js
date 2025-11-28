@@ -29,6 +29,7 @@ class WhatsAppBot {
         this.client = new Client(clientConfig);
         this.commands = new Map();
         this.events = new Map();
+        this.functions = new Map();
         this.prefix = config.prefix;
         this.config = config;
         this.version = config.version;
@@ -89,6 +90,41 @@ class WhatsAppBot {
             console.error("Gagal membaca direktori perintah:", error.message);
         }
     }
+
+    async loadFunctions() {
+        const functionsPath = join(__dirname, "functions");
+
+        try {
+            const functionFiles = fs
+                .readdirSync(functionsPath)
+                .filter((file) => file.endsWith(".js"));
+
+            console.log(`Ditemukan ${functionFiles.length} file di folder functions: ${functionFiles.join(", ")}`);
+
+            for (const file of functionFiles) {
+                try {
+                    const filePath = join(functionsPath, file);
+                    const functionModule = await import(`file://${filePath}?update=${Date.now()}`);
+
+                    const func = functionModule.default;
+
+                    if (func && typeof func === 'object' && func.name) {
+                        this.functions.set(func.name, func);
+                        console.log(`✓ Function loaded: ${func.name} ← dari ${file}`);
+                    } else {
+                        console.error(`File ${file} tidak memiliki export default yang valid!`);
+                    }
+                } catch (error) {
+                    console.error(`GAGAL memuat ${file}:`, error.message);
+                    console.error(error.stack);
+                }
+            }
+
+            console.log(`Total functions berhasil dimuat: ${this.functions.size}`);
+        } catch (error) {
+            console.error("Gagal membaca direktori functions:", error.message);
+        }
+    }
     async loadEvents() {
         const eventsPath = join(__dirname, "events");
 
@@ -131,6 +167,7 @@ class WhatsAppBot {
         console.log("📂 Memuat perintah dan event...\n");
 
         await this.loadCommands();
+        await this.loadFunctions();
         await this.loadEvents();
 
         console.log("\n✨ Bot berhasil diinisialisasi!");

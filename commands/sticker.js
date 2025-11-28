@@ -7,7 +7,7 @@ export default {
     description: "Bikin sticker dari foto atau text",
     usage: ".sticker <text> atau reply gambar dengan .sticker",
     prefixRequired: true,
-    triggers: [".sticker"],
+    triggers: [".sticker", ".stiker"],
 
     async execute(message, args, bot) {
         // Check if replying to a message with media (image)

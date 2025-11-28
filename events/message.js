@@ -5,166 +5,28 @@ import pkg from "whatsapp-web.js";
 const { MessageMedia } = pkg;
 import fs from 'fs';
 
-// Import command formatters
-import { formatInfoMessage } from '../commands/info.js';
-import { formatHelpMessage } from '../commands/help.js';
-import { formatPingMessage } from '../commands/ping.js';
-import { formatEveryoneMessage } from '../commands/everyone.js';
-import { handleImageResponse } from '../commands/img.js';
-
 // Emoji reaction cooldown tracker (chatId -> last reaction timestamp)
 const reactionCooldowns = new Map();
 const imageSpamTracker = new Map();
 
 /**
- * Handle function calls from AI
+ * Handle function calls from AI - Dynamic Executor
+ * No more switch case! Uses bot.functions Map for dynamic loading
  */
 async function handleFunctionCalls(bot, message, chat, chatHistory, chatId, functionCalls) {
-  const {
-    get_bot_info,
-    check_ping,
-    show_help_menu,
-    tag_everyone,
-    generate_image,
-    perform_google_search,
-    create_text_sticker,
-    create_image_sticker
-  } = await import('../handlers/functionHandler.js');
-
   for (const call of functionCalls) {
     try {
       Logger.function('AI_FUNCTION', `Executing function: ${call.name}`, { args: call.args });
-      let result;
-      let responseText;
 
-      switch (call.name) {
-        case 'get_bot_info':
-          Logger.function('get_bot_info', 'Fetching bot info...');
-          result = await get_bot_info(bot, message, chat);
-          Logger.data('get_bot_info', 'Bot info retrieved', { botName: result.botName, version: result.version });
-          responseText = formatInfoMessage(result, "🤖 *Info Bot AI-Haikaru*");
-          await message.reply(responseText);
-          Logger.outgoing('get_bot_info', 'Bot info sent to user');
-          chatHistory.push({ role: "model", text: responseText });
-          break;
+      const func = bot.functions.get(call.name);
 
-        case 'check_ping':
-          Logger.function('check_ping', 'Checking bot responsiveness...');
-          result = await check_ping(bot, message);
-          Logger.data('check_ping', 'Ping result', { latency: result.latency, status: result.status });
-          responseText = formatPingMessage(result);
-          await message.reply(responseText);
-          Logger.outgoing('check_ping', `Ping response sent: ${result.latency}ms`);
-          chatHistory.push({ role: "model", text: responseText });
-          break;
-
-        case 'show_help_menu':
-          Logger.function('show_help_menu', 'Generating help menu...');
-          result = await show_help_menu(bot);
-          Logger.data('show_help_menu', 'Help menu generated', { featureCount: result.features.length });
-          responseText = formatHelpMessage(result, "");
-          await message.reply(responseText);
-          Logger.outgoing('show_help_menu', 'Help menu sent to user');
-          chatHistory.push({ role: "model", text: responseText });
-          break;
-
-        case 'tag_everyone':
-          Logger.function('tag_everyone', 'Tagging all members...');
-          result = await tag_everyone(bot, message, chat);
-          Logger.data('tag_everyone', 'Members tagged', { count: result.participantCount, group: result.groupName });
-          responseText = formatEveryoneMessage(result, "");
-          await bot.client.sendMessage(chat.id._serialized, responseText, {
-            mentions: result.mentions,
-            quotedMessageId: message.id._serialized,
-          });
-          Logger.outgoing('tag_everyone', `Tagged ${result.participantCount} members`);
-          chatHistory.push({ role: "model", text: `[Tagged ${result.participantCount} members di grup ${result.groupName}]` });
-          break;
-
-        case 'generate_image':
-          Logger.function('generate_image', `Generating image: ${call.args.prompt}`);
-          await message.reply("Oke siap! tunggu yaa, aku gambar duluu! 🎨✨");
-          result = await generate_image(bot, call.args.prompt);
-          Logger.data('generate_image', 'Image generation result', { success: result.success, prompt: result.prompt });
-          await handleImageResponse(message, result);
-
-          if (result.success) {
-            Logger.outgoing('generate_image', `Image sent successfully: ${result.prompt}`);
-            chatHistory.push({ role: "model", text: `[Generated image: ${result.prompt}]` });
-          } else {
-            Logger.error('generate_image', `Image generation failed: ${result.error}`);
-            chatHistory.push({ role: "model", text: `[Failed to generate image: ${result.error}]` });
-          }
-          break;
-
-        case 'perform_google_search':
-          Logger.function('perform_google_search', `Searching for: ${call.args.query}`);
-          result = await perform_google_search(bot, call.args.query);
-          Logger.data('perform_google_search', 'Search results retrieved', { query: result.query });
-          responseText = `🔎 *Hasil Pencarian Google:*\n\n${result.result}\n\n_Source: Google Search via Gemini_`;
-          await message.reply(responseText);
-          Logger.outgoing('perform_google_search', 'Search results sent to user');
-          chatHistory.push({ role: "model", text: responseText });
-          break;
-
-        case 'create_text_sticker':
-          Logger.function('create_text_sticker', `Creating text sticker: ${call.args.text}`);
-          await message.reply("⏳ Tunggu sebentar ya, lagi bikin sticker dari text...");
-
-          try {
-            const imagePath = await create_text_sticker(call.args.text);
-            const sticker = MessageMedia.fromFilePath(imagePath);
-            await message.reply(sticker, undefined, { sendMediaAsSticker: true });
-            Logger.outgoing('create_text_sticker', 'Text sticker sent to user');
-            chatHistory.push({ role: "model", text: `[Sent text sticker: "${call.args.text}"]` });
-
-            // Cleanup temp file
-            try {
-              fs.unlinkSync(imagePath);
-            } catch (e) {
-              Logger.error('create_text_sticker', 'Failed to delete temp file', { error: e.message });
-            }
-          } catch (error) {
-            Logger.error('create_text_sticker', 'Failed to create text sticker', { error: error.message });
-            await message.reply(`❌ Gagal bikin sticker: ${error.message}`);
-          }
-          break;
-
-        case 'create_image_sticker':
-          Logger.function('create_image_sticker', 'Creating image sticker...');
-
-          // Determine media source (quoted or current message)
-          let mediaToConvert = null;
-          if (message.hasMedia) {
-            mediaToConvert = await message.downloadMedia();
-          } else if (message.hasQuotedMsg) {
-            const quotedMsg = await message.getQuotedMessage();
-            if (quotedMsg.hasMedia) {
-              mediaToConvert = await quotedMsg.downloadMedia();
-            }
-          }
-
-          if (!mediaToConvert || !mediaToConvert.mimetype.startsWith('image/')) {
-            await message.reply("❌ Harap kirim gambar atau reply gambar untuk dijadikan sticker!");
-            chatHistory.push({ role: "model", text: "[Error: No image found for sticker conversion]" });
-            break;
-          }
-
-          await message.reply("⏳ Tunggu sebentar ya, lagi bikin sticker...");
-
-          try {
-            const sticker = await create_image_sticker(mediaToConvert);
-            await message.reply(sticker, undefined, { sendMediaAsSticker: true });
-            Logger.outgoing('create_image_sticker', 'Image sticker sent to user');
-            chatHistory.push({ role: "model", text: "[Sent image sticker]" });
-          } catch (error) {
-            Logger.error('create_image_sticker', 'Failed to create image sticker', { error: error.message });
-            await message.reply(`❌ Gagal bikin sticker: ${error.message}`);
-          }
-          break;
+      if (func) {
+        await func.execute(bot, message, chat, chatHistory, call.args);
+        Logger.success('AI_FUNCTION', `Function executed: ${call.name}`);
+      } else {
+        Logger.error('AI_FUNCTION', `Function not found: ${call.name}`);
+        await message.reply(`Ups, fungsi ${call.name} tidak ditemukan.`);
       }
-
-      Logger.success('AI_FUNCTION', `Function executed: ${call.name}`);
     } catch (error) {
       Logger.error('AI_FUNCTION', `Error executing function ${call.name}`, { error: error.message });
       await message.reply(`Ups, ada error saat menjalankan ${call.name}: ${error.message}`);

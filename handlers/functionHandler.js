@@ -268,7 +268,7 @@ export async function perform_google_search(bot, query) {
 /**
  * Create text-based sticker
  * Generate image from text with white background, black text, word wrapping, and padding
- * Improved layout: Justified text (left-aligned with spacing), Vertical Fill, Dynamic Sizing
+ * Improved layout: Justified text (left-aligned with spacing), Vertical Fill, Dynamic Sizing, Dynamic Spacing
  */
 export async function create_text_sticker(text) {
 
@@ -279,9 +279,19 @@ export async function create_text_sticker(text) {
 
     console.log(`🎨 Creating text sticker: "${text}"`);
 
-    // Configuration
-    const padding = 20;
+    // Configuration Awal
     const canvasSize = 256;
+    const initialPadding = 20;
+
+    // Menghitung Padding Dinamis
+    // Semakin panjang teksnya (misalnya, semakin banyak baris), padding semakin kecil
+    const textLength = text.trim().length;
+    // Padding minimum yang diinginkan, misalnya 5
+    const minPadding = 5;
+    // Rumus sederhana: padding berkurang secara linear (atau logaritmik) seiring bertambahnya panjang teks
+    let padding = Math.max(minPadding, initialPadding - Math.floor(textLength / 10));
+    padding = Math.min(initialPadding, padding); // Pastikan tidak melebihi initialPadding
+
     const maxWidth = canvasSize - (padding * 2);
     const maxHeight = canvasSize - (padding * 2);
 
@@ -289,39 +299,56 @@ export async function create_text_sticker(text) {
     const words = text.trim().split(/\s+/);
     let lines = [];
 
-    // --- Layout Logic (Word Splitting) ---
-    if (words.length === 1) {
-        lines = [words[0]];
-    } else if (words.length === 2) {
-        lines = words;
-    } else if (words.length === 3) {
-        lines = words;
-    } else if (words.length === 4) {
-        lines = words;
-    } else if (words.length > 4) {
-        // Balanced Wrapping
-        const totalChars = text.length;
-        const targetLines = Math.ceil(Math.sqrt(totalChars / 5));
-        const targetCharsPerLine = Math.ceil(totalChars / targetLines);
+    // Asumsi batas karakter per baris, ini akan diuji coba kemudian
+    // Untuk teks yang sangat panjang, kita mulai dengan batas 15-20 karakter untuk mencoba memuat
+    // Batas ini akan disesuaikan saat kita menghitung ukuran font
+    const baseTargetCharsPerLine = 15;
 
-        let currentLine = '';
+    // --- Layout Logic (Word Wrapping Berdasarkan Target Karakter) ---
+    let currentLine = '';
+    for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+
+        // Coba wrapping sederhana berdasarkan target karakter per baris
+        if (testLine.length <= baseTargetCharsPerLine || !currentLine) {
+            currentLine = testLine;
+        } else {
+            lines.push(currentLine);
+            currentLine = word;
+        }
+    }
+    if (currentLine) lines.push(currentLine);
+
+    // Jika target karakter terlalu ketat (misal hanya 1 baris panjang), ulangi dengan batas yang lebih longgar.
+    // Ini membantu jika ada satu kata yang sangat panjang.
+    if (lines.length === 1 && lines[0].length > baseTargetCharsPerLine) {
+        lines = [];
+        let tempLine = '';
         for (const word of words) {
-            const testLine = currentLine ? `${currentLine} ${word}` : word;
-            if (testLine.length <= targetCharsPerLine || !currentLine) {
-                currentLine = testLine;
+            const testLine = tempLine ? `${tempLine} ${word}` : word;
+            // Gunakan batas lebar yang lebih longgar
+            if (testLine.length <= 25 || !tempLine) {
+                tempLine = testLine;
             } else {
-                lines.push(currentLine);
-                currentLine = word;
+                lines.push(tempLine);
+                tempLine = word;
             }
         }
-        if (currentLine) lines.push(currentLine);
+        if (tempLine) lines.push(tempLine);
     }
 
-    // --- Dynamic Font Size Calculation ---
+    // Jika masih ada baris yang terlalu panjang, kita harus bergantung pada pengecilan font.
     const maxLineChars = Math.max(...lines.map(l => l.length));
     const numLines = lines.length;
+
+    // --- Dynamic Font Size Calculation ---
     const fontAspectRatio = 0.55; // Width / Height
-    const lineHeightRatio = 1.0; // Tighter line height for block effect
+
+    // Rasio Ketinggian Baris Dinamis: Semakin banyak baris, semakin ketat/dempet
+    // Mulai dari 1.2 untuk 1 baris, turun ke 0.9 untuk banyak baris.
+    const maxLineRatio = 1.2;
+    const minLineRatio = 0.9;
+    const lineHeightRatio = Math.max(minLineRatio, maxLineRatio - (numLines * 0.1));
 
     // Calculate max font size constrained by width
     const fontSizeByWidth = maxWidth / (maxLineChars * fontAspectRatio);
@@ -332,23 +359,29 @@ export async function create_text_sticker(text) {
     // Choose the smaller constraint for the base font size
     let fontSize = Math.min(fontSizeByWidth, fontSizeByHeight);
 
-    // Clamping
-    fontSize = Math.min(fontSize, 200); // Max size
-    fontSize = Math.max(fontSize, 40);  // Min size
+    fontSize = Math.min(fontSize, 200);
 
-    // --- Vertical Distribution ---
+    const minFinalFontSize = 10;
+    fontSize = Math.max(fontSize, minFinalFontSize);
+
     let linePositions = [];
-    if (numLines === 1) {
-        // Center vertically
-        linePositions.push((canvasSize / 2) + (fontSize * 0.35));
-    } else {
-        // Distribute evenly
-        const bandHeight = maxHeight / numLines;
-        for (let i = 0; i < numLines; i++) {
-            const bandCenter = padding + (i * bandHeight) + (bandHeight / 2);
-            linePositions.push(bandCenter + (fontSize * 0.35));
-        }
+    const totalTextHeight = numLines * fontSize * lineHeightRatio;
+
+    let currentY = padding + (maxHeight - totalTextHeight) / 2;
+
+    for (let i = 0; i < numLines; i++) {
+        currentY += fontSize * lineHeightRatio;
+        linePositions.push(currentY - (fontSize * 0.35));
     }
+
+    const textBlockHeight = numLines * fontSize * lineHeightRatio;
+    let yStart = (canvasSize / 2) - (textBlockHeight / 2) + (fontSize * 0.75);
+
+    linePositions = [];
+    for (let i = 0; i < numLines; i++) {
+        linePositions.push(yStart + (i * fontSize * lineHeightRatio));
+    }
+
 
     // --- SVG Generation ---
     const svgText = lines.map((line, i) => {
@@ -374,7 +407,7 @@ export async function create_text_sticker(text) {
         </svg>
     `;
 
-    // Ensure .local directory exists
+    // Ensure .local directory exists (Asumsi fungsi fs dan sharp tersedia)
     if (!fs.existsSync('.local')) {
         fs.mkdirSync('.local', { recursive: true });
     }

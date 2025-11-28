@@ -183,7 +183,9 @@ export async function getGeminiResponse(
 	userPrompt,
 	modelName = "gemini-flash-latest",
 ) {
-	if (!bot.openai) {
+	const openaiClient = bot.openai2 || bot.openai;
+
+	if (!openaiClient) {
 		console.error("Gemini API (OpenAI) tidak diinisialisasi.");
 		return "Maaf, fitur AI sedang tidak aktif. Harap hubungi pengembang (Haikal).";
 	}
@@ -191,7 +193,7 @@ export async function getGeminiResponse(
 	const systemInstruction = HELPER_PERSONA;
 
 	try {
-		const completion = await bot.openai.chat.completions.create({
+		const completion = await openaiClient.chat.completions.create({
 			model: modelName,
 			messages: [
 				{ role: "system", content: systemInstruction },
