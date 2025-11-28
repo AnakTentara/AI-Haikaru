@@ -1,6 +1,7 @@
 import pkg from "whatsapp-web.js";
 const { MessageMedia } = pkg;
 import fs from 'fs';
+import sharp from 'sharp';
 
 /**
  * Get bot info & statistics
@@ -98,6 +99,7 @@ export async function show_help_menu(bot) {
                     "Cek ping/responsivitas bot (.ping)",
                     "Info statistik bot & chat (.info)",
                     "Generate gambar dari deskripsi (.img)",
+                    "Bikin sticker dari foto atau text (.sticker)",
                 ]
             },
             {
@@ -122,7 +124,9 @@ export async function show_help_menu(bot) {
             "\"nomor ku berapa?\" → Nomor kamu",
             "\"cek ping\" → Responsivitas",
             "\"tag semua orang\" → Mention all (grup only)",
-            "\"bikinin gambar sunset\" → Generate image"
+            "\"bikinin gambar sunset\" → Generate image",
+            "\"bikin sticker dari gambar ini\" → Image to sticker (reply gambar)",
+            "\"jadiin sticker: Hello World\" → Text to sticker"
         ]
     };
 }
@@ -245,4 +249,118 @@ export async function perform_google_search(bot, query) {
         result: searchResult,
         timestamp: new Date().toISOString()
     };
+}
+
+/**
+ * Create text-based sticker
+ * Generate image from text with white background, black text, word wrapping, and padding
+ */
+export async function create_text_sticker(text) {
+    console.log(`🎨 Creating text sticker: "${text}"`);
+
+    // Configuration
+    const padding = 10;
+    const maxWidth = 512 - (padding * 2);  // 512px is WhatsApp sticker size
+    const fontSize = text.length > 100 ? 24 : text.length > 50 ? 32 : 40;
+    const lineHeight = fontSize * 1.4;
+
+    // Word wrapping logic
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+
+    // Estimate character width (rough approximation)
+    const charWidth = fontSize * 0.6;
+    const maxCharsPerLine = Math.floor(maxWidth / charWidth);
+
+    for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+
+        if (testLine.length <= maxCharsPerLine) {
+            currentLine = testLine;
+        } else {
+            if (currentLine) lines.push(currentLine);
+            currentLine = word;
+        }
+    }
+    if (currentLine) lines.push(currentLine);
+
+    // Calculate image height based on number of lines
+    const textHeight = lines.length * lineHeight;
+    const imageHeight = Math.max(512, textHeight + (padding * 2));
+
+    // Create SVG with text
+    const svgText = lines.map((line, i) => {
+        const y = padding + (i * lineHeight) + fontSize;
+        return `<text x="50%" y="${y}" text-anchor="middle" font-size="${fontSize}" font-family="Arial, sans-serif" fill="#000000">${escapeXml(line)}</text>`;
+    }).join('\n');
+
+    const svg = `
+        <svg width="512" height="${imageHeight}" xmlns="http://www.w3.org/2000/svg">
+            <rect width="512" height="${imageHeight}" fill="#FFFFFF"/>
+            ${svgText}
+        </svg>
+    `;
+
+    // Ensure .local directory exists
+    if (!fs.existsSync('.local')) {
+        fs.mkdirSync('.local', { recursive: true });
+    }
+
+    // Generate image using sharp
+    const tempPath = `.local/text_sticker_${Date.now()}.png`;
+
+    await sharp(Buffer.from(svg))
+        .resize(512, 512, {
+            fit: 'contain',
+            background: { r: 255, g: 255, b: 255, alpha: 1 }
+        })
+        .png()
+        .toFile(tempPath);
+
+    console.log(`✅ Text sticker created: ${tempPath}`);
+    return tempPath;
+}
+
+/**
+ * Create image-based sticker
+ * Convert MessageMedia to sticker format with proper resizing
+ */
+export async function create_image_sticker(media) {
+    console.log(`🎨 Creating image sticker from media`);
+
+    // Decode base64 image
+    const buffer = Buffer.from(media.data, 'base64');
+
+    // Resize to WhatsApp sticker specs (512x512, maintain aspect ratio)
+    const resizedBuffer = await sharp(buffer)
+        .resize(512, 512, {
+            fit: 'contain',
+            background: { r: 255, g: 255, b: 255, alpha: 0 }
+        })
+        .png()
+        .toBuffer();
+
+    // Convert back to MessageMedia
+    const base64 = resizedBuffer.toString('base64');
+    const sticker = new MessageMedia('image/png', base64);
+
+    console.log(`✅ Image sticker created`);
+    return sticker;
+}
+
+/**
+ * Helper function to escape XML special characters
+ */
+function escapeXml(unsafe) {
+    return unsafe.replace(/[<>&'"]/g, (c) => {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
+            default: return c;
+        }
+    });
 }

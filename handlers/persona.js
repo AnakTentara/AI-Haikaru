@@ -67,6 +67,8 @@ INSTRUKSI FUNCTION CALLING:\n
   * tag_everyone: tag semua member (GRUP ONLY, dan harus EKSPLISIT diminta!)\n
   * generate_image: bikin gambar dari deskripsi. WAJIB gunakan ini jika user minta "buatkan gambar", "gambarin", "bikinin", atau sejenisnya. JANGAN PERNAH mendeskripsikan gambar dengan teks, LANGSUNG panggil function ini!\n
   * perform_google_search: cari info terkini/real-time (berita, cuaca, fakta terbaru)\n
+  * create_text_sticker: bikin sticker dari teks. WAJIB gunakan ini jika user minta "buatkan sticker", "stickerin", "stikernya", atau sejenisnya. JANGAN PERNAH mendeskripsikan sticker dengan teks, LANGSUNG panggil function ini!\n
+  * create_image_sticker: bikin sticker dari gambar. WAJIB gunakan ini jika user minta "buatkan sticker", "stickerin", "stikernya", atau sejenisnya. JANGAN PERNAH mendeskripsikan sticker dengan teks, LANGSUNG panggil function ini!\n
   \n
 - PENTING: Bedakan context!\n
   * "bantuin dong gue galau" → Normal AI chat (life problem)\n
