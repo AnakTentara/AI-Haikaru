@@ -1,6 +1,7 @@
 import { create_text_sticker, create_image_sticker } from "../handlers/functionHandler.js";
 import pkg from "whatsapp-web.js";
 const { MessageMedia } = pkg;
+import Logger from "../handlers/logger.js";
 
 export default {
     name: "sticker",

@@ -1,5 +1,6 @@
 import { getGeminiResponse } from "../handlers/geminiProcessor.js";
 import { get_bot_info } from "../handlers/functionHandler.js";
+import Logger from "../handlers/logger.js";
 
 export function formatInfoMessage(data, aiSalutation) {
   let info = `${aiSalutation}\n\n`;

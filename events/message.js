@@ -10,33 +10,51 @@ const reactionCooldowns = new Map();
 const imageSpamTracker = new Map();
 
 /**
- * Handle function calls from AI - Dynamic Executor
- * No more switch case! Uses bot.functions Map for dynamic loading
+ * Handle function calls from AI - Simplified
+ * Commands called directly, only true functions use functions/ folder
  */
 async function handleFunctionCalls(bot, message, chat, chatHistory, chatId, functionCalls) {
+  const functionToCommandMap = {
+    'get_bot_info': 'info',
+    'check_ping': 'ping',
+    'show_help_menu': 'help',
+    'tag_everyone': 'everyone',
+    'generate_image': 'img',
+    'create_text_sticker': 'sticker',
+    'create_image_sticker': 'sticker'
+  };
+
   for (const call of functionCalls) {
     try {
-      Logger.function('AI_FUNCTION', `Executing function: ${call.name}`, { args: call.args });
+      Logger.function('AI_FUNCTION', `Executing: ${call.name}`, { args: call.args });
+      const commandName = functionToCommandMap[call.name];
 
-      const func = bot.functions.get(call.name);
-
-      if (func) {
-        await func.execute(bot, message, chat, chatHistory, call.args);
-        Logger.success('AI_FUNCTION', `Function executed: ${call.name}`);
+      if (commandName) {
+        // Direct command execution
+        const command = bot.commands.get(commandName);
+        if (command) {
+          const argsArray = call.args.prompt ? [call.args.prompt] :
+            call.args.text ? [call.args.text] : [];
+          await command.execute(message, argsArray, bot, chatHistory);
+          chatHistory.push({ role: "model", text: `[Executed .${commandName}]` });
+        }
       } else {
-        Logger.error('AI_FUNCTION', `Function not found: ${call.name}`);
-        await message.reply(`Ups, fungsi ${call.name} tidak ditemukan.`);
+        // True function (Google search, sticker conversion)
+        const func = bot.functions.get(call.name);
+        
+        if (func) {
+          await func.execute(bot, message, chat, chatHistory, call.args);
+        }
       }
+      Logger.success('AI_FUNCTION', `Done: ${call.name}`);
     } catch (error) {
-      Logger.error('AI_FUNCTION', `Error executing function ${call.name}`, { error: error.message });
-      await message.reply(`Ups, ada error saat menjalankan ${call.name}: ${error.message}`);
-    }
+      Logger.error('AI_FUNCTION', `Error: ${call.name}`, { error: error.message });
+      await message.reply(`Error: ${error.message}`);
+   }
   }
 
-  // Save history after all functions executed
-  Logger.db('SAVE_HISTORY', `Saving chat history for ${chatId}`);
   await saveChatHistory(chatId, chatHistory);
-}
+};
 
 export default {
   name: "message",

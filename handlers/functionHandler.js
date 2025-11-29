@@ -156,19 +156,17 @@ export async function tag_everyone(bot, message, chat) {
     }
 
     const participants = chat.participants;
-    const mentions = participants.map((p));
+    
+    // Get all participant IDs for mentions
+    const mentions = participants.map(p => p.id._serialized);
+    const mentionText = mentions.map(id => `@${id.split('@')[0]}`).join(' ');
 
-    const response = await fetch(url);
-
-    if (!response.ok) {
-        let data = {
-            mentionText: mentionText,
-            participantCount: participants.length,
-            groupName: chat.name
-        };
-
-        throw new Error(`HTTP Error: ${data}`);
-    }
+    return {
+        mentions: mentions,
+        participantCount: participants.length,
+        groupName: chat.name,
+        mentionText: mentionText // ← Sekarang ada isinya!
+    };
 }
 
 export async function generate_image(bot, prompt) {

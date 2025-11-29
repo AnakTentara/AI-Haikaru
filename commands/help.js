@@ -1,5 +1,6 @@
 import { getGeminiResponse } from "../handlers/geminiProcessor.js";
 import { show_help_menu } from "../handlers/functionHandler.js";
+import Logger from "../handlers/logger.js";
 
 export function formatHelpMessage(data, aiSalutation) {
   let helpMessage = `${aiSalutation}\n\n`;

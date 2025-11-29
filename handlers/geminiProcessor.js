@@ -327,7 +327,7 @@ Kamu adalah AI classifier. Tugasmu hanya satu: Menentukan apakah pesan user memb
 
 Kriteria "requiresMemory":
 - TRUE jika: User bertanya tentang masa lalu ("kemarin kita bahas apa?"), menagih janji ("mana gambarnya?"), merujuk topik sebelumnya ("lanjutin yang tadi"), atau pertanyaan implisit yang butuh konteks ("siapa dia?").
-- FALSE jika: Sapaan ("halo"), pertanyaan umum ("siapa presiden RI?"), perintah baru ("buatkan gambar kucing"), atau obrolan ringan yang berdiri sendiri.
+- FALSE jika: Sapaan ("halo"), pertanyaan umum ("siapa presiden RI?"), perintah baru ("buatkan gambar kucing"), atau obrolan ringan yang berdiri sendiri, kalo dia hanya menyuruh untuk menjalankan perintah/command (serperti tag semua orang[@everyone], ping, tampilkan menu help, tampilkan menu info).
 
 Output WAJIB JSON:
 { "requiresMemory": boolean }
