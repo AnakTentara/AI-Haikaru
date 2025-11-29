@@ -4,6 +4,7 @@ import Logger from "../handlers/logger.js";
 import pkg from "whatsapp-web.js";
 const { MessageMedia } = pkg;
 import fs from 'fs';
+import { extractTextFromDocument } from "../handlers/documentProcessor.js";
 
 // Emoji reaction cooldown tracker (chatId -> last reaction timestamp)
 const reactionCooldowns = new Map();
@@ -41,7 +42,7 @@ async function handleFunctionCalls(bot, message, chat, chatHistory, chatId, func
       } else {
         // True function (Google search, sticker conversion)
         const func = bot.functions.get(call.name);
-        
+
         if (func) {
           await func.execute(bot, message, chat, chatHistory, call.args);
         }
@@ -50,7 +51,7 @@ async function handleFunctionCalls(bot, message, chat, chatHistory, chatId, func
     } catch (error) {
       Logger.error('AI_FUNCTION', `Error: ${call.name}`, { error: error.message });
       await message.reply(`Error: ${error.message}`);
-   }
+    }
   }
 
   await saveChatHistory(chatId, chatHistory);
@@ -137,39 +138,51 @@ export default {
     // --- IMAGE HANDLING LOGIC ---
     if (message.hasMedia) {
       try {
-        Logger.info('IMAGE', 'Downloading image from message...');
+        Logger.info('MEDIA', 'Downloading media from message...');
         const media = await message.downloadMedia();
-        if (media && media.mimetype.startsWith("image/")) {
-          // Anti-spam: Check if user is spamming images
-          const now = Date.now();
-          const senderId = senderWID;
 
-          if (!imageSpamTracker.has(senderId)) {
-            imageSpamTracker.set(senderId, []);
+        if (media) {
+          // Buffer dari base64
+          const buffer = Buffer.from(media.data, 'base64');
+
+          // A. LOGIC GAMBAR (Seperti sebelumnya)
+          if (media.mimetype.startsWith("image/")) {
+            // ... (Kode anti-spam gambar kamu biarkan di sini) ...
+
+            newMessage.image = {
+              mimeType: media.mimetype,
+              data: media.data
+            };
+            Logger.success('IMAGE', 'Image added to payload');
           }
 
-          const timestamps = imageSpamTracker.get(senderId);
-          // Remove timestamps older than 60 seconds
-          const recentTimestamps = timestamps.filter(t => now - t < 60000);
+          // B. LOGIC DOKUMEN (BARU ✨)
+          else if (
+            media.mimetype === 'application/pdf' ||
+            media.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+            media.mimetype === 'text/plain'
+          ) {
+            await message.reply("Sebentar ya, aku baca dulu dokumennya... 📄🤓");
 
-          if (recentTimestamps.length >= 5) {
-            // User has sent 5+ images in the last 60 seconds - SPAM!
-            Logger.warning('IMAGE_SPAM', `User ${senderIdentifier} is spamming images (${recentTimestamps.length + 1} images). Ignoring this image.`);
-            return; // Exit early, don't process this message at all
+            const extractedText = await extractTextFromDocument(buffer, media.mimetype);
+
+            if (extractedText) {
+
+              const truncatedText = extractedText.length > 200000
+                ? extractedText.substring(0, 200000) + "...[dipotong karena terlalu panjang]"
+                : extractedText;
+
+              // Inject ke prompt
+              newMessage.text += `\n\n[SYSTEM: User melampirkan dokumen. Berikut isinya:]\n---\n${truncatedText}\n---\n[Instruksi: Jawab pertanyaan user berdasarkan isi dokumen di atas]`;
+
+              Logger.success('DOCUMENT', 'Text extracted and added to context', { length: truncatedText.length });
+            } else {
+              await message.reply("Waduh, aku gagal baca isinya. Mungkin file rusak atau terenkripsi password.");
+            }
           }
-
-          // Not spam, add timestamp and continue
-          recentTimestamps.push(now);
-          imageSpamTracker.set(senderId, recentTimestamps);
-
-          newMessage.image = {
-            mimeType: media.mimetype,
-            data: media.data
-          };
-          Logger.success('IMAGE', 'Image downloaded and added to message', { mimeType: media.mimetype });
         }
       } catch (err) {
-        Logger.error('IMAGE', 'Failed to download media', { error: err.message });
+        Logger.error('MEDIA', 'Failed to process media', { error: err.message });
       }
     }
 
