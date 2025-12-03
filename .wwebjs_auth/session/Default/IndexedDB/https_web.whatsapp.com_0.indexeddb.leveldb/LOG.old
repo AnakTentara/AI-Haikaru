@@ -1,0 +1,17 @@
+2025/11/29-08:37:41.467 3934 Reusing MANIFEST D:\code\waweb\AI-Haikaru\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/11/29-08:37:41.468 3934 Recovering log #218
+2025/11/29-08:37:41.672 3934 Reusing old log D:\code\waweb\AI-Haikaru\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000218.log 
+2025/11/29-08:37:49.350 fc4 Level-0 table #225: started
+2025/11/29-08:37:49.585 fc4 Level-0 table #225: 449416 bytes OK
+2025/11/29-08:37:49.744 fc4 Delete type=0 #218
+2025/11/29-08:37:49.746 fc4 Manual compaction at level-0 from '\x00<\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00=\x00\x00\x00' @ 0 : 0; will stop at (end)
+2025/11/29-08:38:01.128 40d0 Compacting 1@1 + 3@2 files
+2025/11/29-08:38:01.916 40d0 Generated table #226@1: 40628 keys, 2224978 bytes
+2025/11/29-08:38:02.363 40d0 Generated table #227@1: 14005 keys, 2172116 bytes
+2025/11/29-08:38:02.794 40d0 Generated table #228@1: 44973 keys, 831364 bytes
+2025/11/29-08:38:02.794 40d0 Compacted 1@1 + 3@2 files => 5228458 bytes
+2025/11/29-08:38:02.811 40d0 compacted to: files[ 0 0 3 0 0 0 0 ]
+2025/11/29-08:38:02.812 40d0 Delete type=2 #220
+2025/11/29-08:38:02.812 40d0 Delete type=2 #221
+2025/11/29-08:38:02.812 40d0 Delete type=2 #222
+2025/11/29-08:38:02.812 40d0 Delete type=2 #225
