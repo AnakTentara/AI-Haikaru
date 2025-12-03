@@ -1,5 +1,4 @@
-import pdf from 'pdf-parse';
-import mammoth from 'mammoth';
+let pdf, mammoth;
 import Logger from './logger.js';
 
 /**
@@ -9,6 +8,14 @@ import Logger from './logger.js';
  * @returns {Promise<string|null>} Teks yang diekstrak atau null jika gagal/tidak didukung
  */
 export async function extractTextFromDocument(buffer, mimetype) {
+    // Lazy load dependencies only when needed
+    if (!pdf) {
+        pdf = (await import('pdf-parse')).default;
+    }
+    if (!mammoth) {
+        mammoth = (await import('mammoth')).default;
+    }
+
     try {
         Logger.info('DOC_PROCESSOR', `Processing document: ${mimetype}`);
 
@@ -19,7 +26,6 @@ export async function extractTextFromDocument(buffer, mimetype) {
         }
 
         // 2. Handle Word (.docx)
-        // Note: Mammoth hanya support .docx, bukan .doc lama
         else if (mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
             const result = await mammoth.extractRawText({ buffer: buffer });
             return result.value;
