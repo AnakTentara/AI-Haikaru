@@ -2,6 +2,7 @@ import { create_text_sticker, create_image_sticker } from "../handlers/functionH
 import pkg from "whatsapp-web.js";
 const { MessageMedia } = pkg;
 import Logger from "../handlers/logger.js";
+import fs from 'fs';
 
 export default {
     name: "sticker",
@@ -10,7 +11,7 @@ export default {
     prefixRequired: true,
     triggers: [".sticker", ".stiker"],
 
-    async execute(message, args, bot) {
+    async execute(message, args, bot, chatHistory) {
         // Check if replying to a message with media (image)
         const quotedMsg = await message.getQuotedMessage();
 
@@ -28,7 +29,7 @@ export default {
                 const sticker = await create_image_sticker(media);
                 await message.reply(sticker, undefined, { sendMediaAsSticker: true });
             } catch (error) {
-                console.error("Error creating image sticker:", error);
+                Logger.error('create_image_sticker', 'Error creating image sticker', { error: error.message });
                 await message.reply(`❌ Gagal bikin sticker dari gambar: ${error.message}`);
             }
             return;
@@ -50,14 +51,13 @@ export default {
                 await message.reply(sticker, undefined, { sendMediaAsSticker: true });
 
                 // Cleanup temp file
-                const fs = await import('fs');
                 try {
-                    fs.default.unlinkSync(imagePath);
+                    fs.unlinkSync(imagePath);
                 } catch (e) {
-                    console.error("Gagal hapus temp file:", e);
+                    Logger.error('cleanup', 'Failed to delete temp file', { error: e.message });
                 }
             } catch (error) {
-                console.error("Error creating text sticker:", error);
+                Logger.error('create_text_sticker', 'Error creating text sticker', { error: error.message });
                 await message.reply(`❌ Gagal bikin sticker dari text: ${error.message}`);
             }
             return;

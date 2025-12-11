@@ -33,7 +33,7 @@ export default {
     prefixRequired: true,
     triggers: [],
 
-    async execute(message, args, bot) {
+    async execute(message, args, bot, chatHistory) {
         if (args.length === 0) {
             return message.reply("⚠️ Harap masukkan deskripsi gambar! Contoh: `.img kucing terbang`");
         }
@@ -50,8 +50,7 @@ export default {
                 prompt: result.prompt
             });
         } catch (error) {
-            console.error("Error executing .img command:", error);
-            console.error("Full error stack:", error.stack);
+            Logger.error('generate_image', 'Error executing .img command', { error: error.message, stack: error.stack });
             await message.reply(`Terjadi kesalahan saat membuat gambar:\n${error.message}`);
         }
     }

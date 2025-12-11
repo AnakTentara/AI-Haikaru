@@ -15,7 +15,7 @@ export default {
 
   async execute(message, args, bot, chatHistory) {
     if (chatHistory) {
-        chatHistory.push({ role: "model", text: "[Executed command]" });
+      chatHistory.push({ role: "model", text: "[Executed command]" });
     }
 
     try {
@@ -25,9 +25,9 @@ export default {
       // Use handler logic
       const result = await tag_everyone(bot, message, chat);
       Logger.data('tag_everyone', 'Members tagged', {
-            count: result.participantCount,
-            group: result.groupName
-        });
+        count: result.participantCount,
+        group: result.groupName
+      });
       const geminiPrompt = `seseorang telah menjalankan perintah tag everyone, yang artinya kamu akan membalas pesan tersebut dengan balasan + tag semua orang yang ada di dalam grup. buatlah 1 kalimat nya untuk orang yang menjalankan perintah tersebut.
 `;
       const aiResponseText = await getGeminiResponse(bot, geminiPrompt);
@@ -38,7 +38,9 @@ export default {
         quotedMessageId: message.id._serialized,
       });
       Logger.outgoing('tag_everyone', `Tagged ${result.participantCount} members`);
-      chatHistory.push({ role: "model", text: `[Tagged ${result.participantCount} members di grup ${result.groupName}]`});
+      if (chatHistory) {
+        chatHistory.push({ role: "model", text: `[Tagged ${result.participantCount} members di grup ${result.groupName}]` });
+      }
     } catch (error) {
       console.error("Kesalahan Tag Semua:", error);
       message.reply(error.message);

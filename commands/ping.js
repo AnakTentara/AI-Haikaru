@@ -20,7 +20,9 @@ export default {
     const data = await check_ping(bot, message);
     const responseText = formatPingMessage(data);
 
-    chatHistory.push({ role: "model", text: "[Executed .ping command to check responsiveness]" });
+    if (chatHistory) {
+      chatHistory.push({ role: "model", text: "[Executed .ping command to check responsiveness]" });
+    }
 
     await message.reply(responseText);
   },

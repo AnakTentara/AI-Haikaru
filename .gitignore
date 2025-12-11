@@ -7,3 +7,5 @@ yarn-error.log*
 *.log
 .env
 chat_history/
+.wwebjs_auth
+.wwebjs_cache

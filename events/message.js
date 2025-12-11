@@ -81,7 +81,11 @@ export default {
       if (command) {
         try {
           Logger.command('PREFIX_COMMAND', `Executing command: ${commandName}`, { from, args });
-          await command.execute(message, args, bot);
+          const chat = await message.getChat();
+          const chatId = chat.id._serialized;
+          const chatHistory = await loadChatHistory(chatId);
+          await command.execute(message, args, bot, chatHistory);
+          await saveChatHistory(chatId, chatHistory);
           Logger.success('PREFIX_COMMAND', `Command executed: ${commandName}`);
         } catch (error) {
           Logger.error('PREFIX_COMMAND', `Error executing command: ${commandName}`, { error: error.message });
@@ -99,7 +103,11 @@ export default {
       ) {
         try {
           Logger.command('TRIGGER_COMMAND', `Executing trigger command: ${name}`, { from });
-          await command.execute(message, [], bot);
+          const chat = await message.getChat();
+          const chatId = chat.id._serialized;
+          const chatHistory = await loadChatHistory(chatId);
+          await command.execute(message, [], bot, chatHistory);
+          await saveChatHistory(chatId, chatHistory);
           Logger.success('TRIGGER_COMMAND', `Trigger command executed: ${name}`);
           return; // Exit after executing trigger command
         } catch (error) {
