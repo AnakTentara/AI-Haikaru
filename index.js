@@ -81,6 +81,33 @@ class WhatsAppBot {
             });
             console.log("✅ OpenAI Client (Context/Helper/Reaction/Grounding)");
         }
+
+        // Berita News Generator - 3 API Keys Fallback Chain
+        this.beritaClients = [];
+        
+        if (process.env.GEMINI_API_KEY_BERITA) {
+            this.beritaClients.push({
+                client: new OpenAI({ apiKey: process.env.GEMINI_API_KEY_BERITA, baseURL: geminiBaseURL }),
+                name: "Primary"
+            });
+            console.log("✅ Berita Primary (GEMINI_API_KEY_BERITA)");
+        }
+        
+        if (process.env.GEMINI_API_KEY_BERITA_2) {
+            this.beritaClients.push({
+                client: new OpenAI({ apiKey: process.env.GEMINI_API_KEY_BERITA_2, baseURL: geminiBaseURL }),
+                name: "Secondary"
+            });
+            console.log("✅ Berita Secondary (GEMINI_API_KEY_BERITA_2)");
+        }
+        
+        if (process.env.GEMINI_API_KEY_BERITA_3) {
+            this.beritaClients.push({
+                client: new OpenAI({ apiKey: process.env.GEMINI_API_KEY_BERITA_3, baseURL: geminiBaseURL }),
+                name: "Tertiary"
+            });
+            console.log("✅ Berita Tertiary (GEMINI_API_KEY_BERITA_3)");
+        }
     }
 
     async loadCommands() {
