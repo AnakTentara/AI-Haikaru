@@ -181,7 +181,7 @@ export async function getGeminiChatResponse(
 export async function getGeminiResponse(
 	bot,
 	userPrompt,
-	modelName = "gemma-3-27b",
+	modelName = "gemini-2.0-flash-lite",
 ) {
 	const openaiClient = bot.openai2 || bot.openai;
 
@@ -298,7 +298,7 @@ Output WAJIB JSON format:
 
 	try {
 		const completion = await openaiClient.chat.completions.create({
-			model: "gemma-3-27b", // Gunakan Gemma 3 untuk reaction (cost-efficient)
+			model: "gemini-2.0-flash-lite", // Model lite untuk reaction (cost-efficient)
 			messages: messages,
 			temperature: 1.0,
 			response_format: { type: "json_object" }
