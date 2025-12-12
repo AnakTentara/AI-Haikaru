@@ -11,17 +11,16 @@
     "gemini": {
       "baseURL": "https://generativelanguage.googleapis.com/v1beta/openai/",
       "models": {
-        "main": "gemini-2.5-flash-lite",
-        "contextAnalyzer": "gemini-2.0-flash-lite",
-        "grounding": "gemini-2.0-flash-lite"
+        "main": "gemini-2.5-flash-lite"
       }
     },
     "openai": {
       "baseURL": "https://api.openai.com/v1",
       "models": {
+        "contextAnalyzer": "gpt-4o-mini",
         "helper": "gpt-4o-mini",
         "reaction": "gpt-4o-mini",
-        "fallback": "gpt-4o-mini"
+        "grounding": "gpt-4o-mini"
       }
     }
   },

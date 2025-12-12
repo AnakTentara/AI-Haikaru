@@ -17,8 +17,8 @@ export async function getGeminiChatResponse(
 	chatHistory,
 	modelName = null,
 ) {
-	// Build client fallback chain: Primary → Secondary
-	const clients = [bot.geminiPrimary, bot.geminiSecondary].filter(Boolean);
+	// Use all available Gemini clients from fallback chain
+	const clients = bot.geminiClients || [];
 
 	if (clients.length === 0) {
 		return "Maaf, fitur AI sedang tidak aktif. Harap hubungi pengembang (Haikal).";
@@ -140,10 +140,7 @@ export async function getGeminiChatResponse(
 	];
 
 	// Try each client in fallback chain
-	for (let i = 0; i < clients.length; i++) {
-		const client = clients[i];
-		const keyName = i === 0 ? "Primary" : "Secondary";
-
+	for (const { client, name: keyName } of clients) {
 		try {
 			const completion = await client.chat.completions.create({
 				model: model,
@@ -245,75 +242,31 @@ export async function getGeminiResponse(
 import fetch from 'node-fetch';
 
 export async function getGroundedResponse(bot, query) {
-	// Use model from config or default
-	const groundingModel = bot.config.ai?.gemini?.models?.grounding || "gemini-2.0-flash-lite";
-	const fallbackModel = bot.config.ai?.openai?.models?.fallback || "gpt-4o-mini";
-
-	// Build API key fallback chain for grounding
-	const geminiKeys = [
-		{ key: bot.geminiApiKey3, name: "Tertiary" },
-		{ key: bot.geminiApiKey4, name: "Quaternary" }
-	].filter(k => k.key);
-
-	// Try Gemini keys with native grounding
-	for (const { key, name } of geminiKeys) {
-		const url = `https://generativelanguage.googleapis.com/v1beta/models/${groundingModel}:generateContent?key=${key}`;
-
-		const payload = {
-			contents: [{ parts: [{ text: query }] }],
-			tools: [{ googleSearch: {} }],
-			generationConfig: { temperature: 0.7 }
-		};
-
-		try {
-			const response = await fetch(url, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
-
-			if (response.status === 429) {
-				console.warn(`⚠️ [${name}] Grounding rate limited (429), trying next key...`);
-				continue;
-			}
-
-			if (!response.ok) {
-				console.warn(`⚠️ [${name}] Grounding HTTP ${response.status}, trying next key...`);
-				continue;
-			}
-
-			const data = await response.json();
-
-			if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
-				console.log(`✅ [${name}] Grounding successful`);
-				return data.candidates[0].content.parts.map(p => p.text).join('').trim();
-			}
-		} catch (error) {
-			console.error(`❌ [${name}] Grounding error:`, error.message);
-			continue;
-		}
+	if (!bot.openaiClient) {
+		return "Maaf, layanan pencarian tidak tersedia.";
 	}
 
-	// Fallback to OpenAI (without grounding - just answer based on training data)
-	if (bot.openaiClient) {
-		try {
-			console.log("⚠️ All Gemini grounding keys exhausted, falling back to OpenAI...");
-			const completion = await bot.openaiClient.chat.completions.create({
-				model: fallbackModel,
-				messages: [
-					{ role: "system", content: "Jawab pertanyaan berikut dengan pengetahuan yang kamu miliki. Jika tidak yakin, katakan bahwa informasi mungkin tidak terbaru." },
-					{ role: "user", content: query }
-				],
-				temperature: 0.7
-			});
-			console.log("✅ [OpenAI Fallback] Response successful");
-			return completion.choices[0].message.content.trim();
-		} catch (error) {
-			console.error("❌ [OpenAI Fallback] Error:", error.message);
-		}
-	}
+	const model = bot.config.ai?.openai?.models?.grounding || "gpt-4o-mini";
 
-	return "Ups, semua layanan pencarian sedang tidak tersedia. Coba lagi nanti.";
+	try {
+		const completion = await bot.openaiClient.chat.completions.create({
+			model: model,
+			messages: [
+				{ role: "system", content: "Kamu adalah asisten yang membantu menjawab pertanyaan. Jawab dengan informatif dan akurat." },
+				{ role: "user", content: query }
+			],
+			temperature: 0.7
+		});
+		console.log("✅ [OpenAI] Grounding response successful");
+		return completion.choices[0].message.content.trim();
+	} catch (error) {
+		if (error.status === 429) {
+			console.warn("⚠️ [OpenAI] Grounding rate limited (429)");
+			return "Layanan pencarian sedang sibuk. Coba lagi sebentar.";
+		}
+		console.error("❌ [OpenAI] Grounding error:", error.message);
+		return `Gagal melakukan pencarian: ${error.message}`;
+	}
 }
 
 /**
@@ -359,7 +312,7 @@ Output WAJIB JSON format:
 
 	try {
 		// Use model from OpenAI config or default
-		const reactionModel = bot.config.ai?.openai?.models?.reaction || "gpt-oss-120b";
+		const reactionModel = bot.config.ai?.openai?.models?.reaction || "gpt-4o-mini";
 		const completion = await openaiClient.chat.completions.create({
 			model: reactionModel,
 			messages: messages,
@@ -385,58 +338,47 @@ Output WAJIB JSON format:
 
 /**
  * Menganalisis intent pesan untuk menentukan apakah butuh deep context (history panjang).
- * Fallback chain: Tertiary → Quaternary → OpenAI
+ * Uses OpenAI only
  */
 export async function analyzeContextIntent(bot, messageBody) {
-	// Build client fallback chain: Tertiary → Quaternary → OpenAI
-	const clients = [
-		{ client: bot.geminiTertiary, name: "Tertiary", model: bot.config.ai?.gemini?.models?.contextAnalyzer || "gemini-2.0-flash-lite" },
-		{ client: bot.geminiQuaternary, name: "Quaternary", model: bot.config.ai?.gemini?.models?.contextAnalyzer || "gemini-2.0-flash-lite" },
-		{ client: bot.openaiClient, name: "OpenAI", model: bot.config.ai?.openai?.models?.fallback || "gpt-4o-mini" }
-	].filter(c => c.client);
+	if (!bot.openaiClient) return false;
 
-	if (clients.length === 0) return false;
+	const model = bot.config.ai?.openai?.models?.contextAnalyzer || "gpt-4o-mini";
 
 	const systemInstruction = `
 Kamu adalah AI classifier. Tugasmu hanya satu: Menentukan apakah pesan user membutuhkan ingatan masa lalu (long-term memory) atau konteks percakapan yang panjang.
 
 Kriteria "requiresMemory":
 - TRUE jika: User bertanya tentang masa lalu ("kemarin kita bahas apa?"), menagih janji ("mana gambarnya?"), merujuk topik sebelumnya ("lanjutin yang tadi"), atau pertanyaan implisit yang butuh konteks ("siapa dia?").
-- FALSE jika: Sapaan ("halo"), pertanyaan umum ("siapa presiden RI?"), perintah baru ("buatkan gambar kucing"), atau obrolan ringan yang berdiri sendiri, kalo dia hanya menyuruh untuk menjalankan perintah/command (serperti tag semua orang[@everyone], ping, tampilkan menu help, tampilkan menu info).
+- FALSE jika: Sapaan ("halo"), pertanyaan umum ("siapa presiden RI?"), perintah baru ("buatkan gambar kucing"), atau obrolan ringan yang berdiri sendiri.
 
 Output WAJIB JSON:
 { "requiresMemory": boolean }
 `;
 
-	for (const { client, name, model } of clients) {
-		try {
-			const completion = await client.chat.completions.create({
-				model: model,
-				messages: [
-					{ role: "system", content: systemInstruction },
-					{ role: "user", content: messageBody }
-				],
-				temperature: 0.5,
-				response_format: { type: "json_object" }
-			});
+	try {
+		const completion = await bot.openaiClient.chat.completions.create({
+			model: model,
+			messages: [
+				{ role: "system", content: systemInstruction },
+				{ role: "user", content: messageBody }
+			],
+			temperature: 0.5,
+			response_format: { type: "json_object" }
+		});
 
-			const responseText = completion.choices[0].message.content;
-			if (!responseText) continue;
+		const responseText = completion.choices[0].message.content;
+		if (!responseText) return false;
 
-			const result = JSON.parse(responseText);
-			console.log(`✅ [${name}] Context analysis successful`);
-			return result.requiresMemory || false;
-		} catch (error) {
-			if (error.status === 429) {
-				console.warn(`⚠️ [${name}] Context analyzer rate limited (429), trying next...`);
-				continue;
-			}
-			console.error(`❌ [${name}] Context analyzer error:`, error.message);
-			continue;
+		const result = JSON.parse(responseText);
+		console.log("✅ [OpenAI] Context analysis successful");
+		return result.requiresMemory || false;
+	} catch (error) {
+		if (error.status === 429) {
+			console.warn("⚠️ [OpenAI] Context analyzer rate limited (429)");
+			return false;
 		}
+		console.error("❌ [OpenAI] Context analyzer error:", error.message);
+		return false;
 	}
-
-	// All failed, default to fast mode
-	console.warn("⚠️ All context analyzer keys exhausted, defaulting to fast mode");
-	return false;
 }
