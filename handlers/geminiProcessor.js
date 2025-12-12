@@ -21,8 +21,8 @@ export async function getGeminiChatResponse(
 		return "Maaf, fitur AI sedang tidak aktif. Harap hubungi pengembang (Haikal).";
 	}
 
-	// Use model from config or default
-	const model = modelName || bot.config.ai?.models?.main || "gemini-2.5-flash-lite";
+	// Use model from Gemini config or default
+	const model = modelName || bot.config.ai?.gemini?.models?.main || "gemini-2.5-flash-lite";
 
 	const systemInstruction = HAIKARU_PERSONA;
 
@@ -186,15 +186,16 @@ export async function getGeminiResponse(
 	userPrompt,
 	modelName = null,
 ) {
-	const openaiClient = bot.openai2 || bot.openai;
+	// Use OpenAI client for Helper AI
+	const openaiClient = bot.openaiClient || bot.openai;
 
 	if (!openaiClient) {
-		console.error("Gemini API (OpenAI) tidak diinisialisasi.");
+		console.error("OpenAI API tidak diinisialisasi.");
 		return "Maaf, fitur AI sedang tidak aktif. Harap hubungi pengembang (Haikal).";
 	}
 
-	// Use model from config or default
-	const model = modelName || bot.config.ai?.models?.helper || "gemini-2.0-flash-lite";
+	// Use model from OpenAI config or default
+	const model = modelName || bot.config.ai?.openai?.models?.helper || "gpt-oss-120b";
 	const systemInstruction = HELPER_PERSONA;
 
 	try {
@@ -272,8 +273,8 @@ export async function getGroundedResponse(bot, query) {
  * Menggunakan mode JSON untuk output terstruktur.
  */
 export async function analyzeEmojiReaction(bot, chatHistory) {
-	// Use tertiary API key (GEMINI_API_KEY_3) dedicated for reactions
-	const openaiClient = bot.openai3 || bot.openai2 || bot.openai;
+	// Use OpenAI client for Reaction AI
+	const openaiClient = bot.openaiClient || bot.openai;
 	if (!openaiClient) return null;
 
 
@@ -309,8 +310,8 @@ Output WAJIB JSON format:
 	}
 
 	try {
-		// Use model from config or default
-		const reactionModel = bot.config.ai?.models?.reaction || "gemini-2.0-flash-lite";
+		// Use model from OpenAI config or default
+		const reactionModel = bot.config.ai?.openai?.models?.reaction || "gpt-oss-120b";
 		const completion = await openaiClient.chat.completions.create({
 			model: reactionModel,
 			messages: messages,
@@ -353,8 +354,8 @@ Output WAJIB JSON:
 `;
 
 	try {
-		// Use model from config or default
-		const model = bot.config.ai?.models?.contextAnalyzer || "gemini-2.5-flash";
+		// Use model from Gemini config or default
+		const model = bot.config.ai?.gemini?.models?.contextAnalyzer || "gemini-2.5-flash";
 		const completion = await bot.openai.chat.completions.create({
 			model: model,
 			messages: [

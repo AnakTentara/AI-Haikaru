@@ -35,36 +35,27 @@ class WhatsAppBot {
         this.version = config.version;
 
         // AI Configuration from config.json
-        const aiBaseURL = config.ai?.baseURL || "https://generativelanguage.googleapis.com/v1beta/openai/";
+        const geminiBaseURL = config.ai?.gemini?.baseURL || "https://generativelanguage.googleapis.com/v1beta/openai/";
+        const openaiBaseURL = config.ai?.openai?.baseURL || "https://api.openai.com/v1";
 
-        if (process.env.GEMINI_API_KEY) {
-            this.geminiApiKey = process.env.GEMINI_API_KEY;
-            // Initialize OpenAI client pointing to Google's Gemini endpoint
+        // Main AI - Uses GEMINI_API_KEY_3 (Gemini endpoint)
+        if (process.env.GEMINI_API_KEY_3) {
+            this.geminiApiKey = process.env.GEMINI_API_KEY_3;
             this.openai = new OpenAI({
                 apiKey: this.geminiApiKey,
-                baseURL: aiBaseURL
+                baseURL: geminiBaseURL
             });
-            console.log("✅ Primary OpenAI client (GEMINI_API_KEY) - Main AI");
+            console.log("✅ Main AI client (GEMINI_API_KEY_3) - Gemini");
         }
 
-        // Secondary Gemini API Key for helper operations
-        if (process.env.GEMINI_API_KEY_2) {
-            this.geminiApiKey2 = process.env.GEMINI_API_KEY_2;
-            this.openai2 = new OpenAI({
-                apiKey: this.geminiApiKey2,
-                baseURL: aiBaseURL
+        // Helper & Reaction AI - Uses OPENAI_API_KEY (OpenAI endpoint)
+        if (process.env.OPENAI_API_KEY) {
+            this.openaiApiKey = process.env.OPENAI_API_KEY;
+            this.openaiClient = new OpenAI({
+                apiKey: this.openaiApiKey,
+                baseURL: openaiBaseURL
             });
-            console.log("✅ Secondary OpenAI client (GEMINI_API_KEY_2) - Helper AI");
-        }
-
-        // Tertiary Gemini API Key for emoji reactions
-        if (process.env.GEMINI_API_KEY_3) {
-            this.geminiApiKey3 = process.env.GEMINI_API_KEY_3;
-            this.openai3 = new OpenAI({
-                apiKey: this.geminiApiKey3,
-                baseURL: aiBaseURL
-            });
-            console.log("✅ Tertiary OpenAI client (GEMINI_API_KEY_3) - Reaction AI");
+            console.log("✅ Helper/Reaction AI client (OPENAI_API_KEY) - OpenAI");
         }
     }
 
