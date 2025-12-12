@@ -17,7 +17,10 @@ export async function getGeminiChatResponse(
 	chatHistory,
 	modelName = null,
 ) {
-	if (!bot.openai) {
+	// Build client fallback chain: Primary → Secondary
+	const clients = [bot.geminiPrimary, bot.geminiSecondary].filter(Boolean);
+
+	if (clients.length === 0) {
 		return "Maaf, fitur AI sedang tidak aktif. Harap hubungi pengembang (Haikal).";
 	}
 
@@ -35,10 +38,7 @@ export async function getGeminiChatResponse(
 		const role = msg.role === "model" ? "assistant" : "user";
 		let content = msg.text;
 
-		// Handle images if present (using OpenAI's image_url format if supported by Gemini via OpenAI endpoint, 
-		// or inline base64 if that's how Gemini OpenAI compat works. 
-		// Gemini OpenAI compat supports standard OpenAI image_url.
-		// However, our msg.image.data is base64.
+		// Handle images if present
 		if (msg.image && msg.image.data && msg.image.mimeType) {
 			content = [
 				{ type: "text", text: msg.text },
@@ -139,46 +139,64 @@ export async function getGeminiChatResponse(
 		}
 	];
 
-	try {
-		const completion = await bot.openai.chat.completions.create({
-			model: model,
-			messages: messages,
-			temperature: 0.8,
-			tools: tools,
-			tool_choice: "auto",
-		});
+	// Try each client in fallback chain
+	for (let i = 0; i < clients.length; i++) {
+		const client = clients[i];
+		const keyName = i === 0 ? "Primary" : "Secondary";
 
-		const responseMessage = completion.choices[0].message;
+		try {
+			const completion = await client.chat.completions.create({
+				model: model,
+				messages: messages,
+				temperature: 0.8,
+				tools: tools,
+				tool_choice: "auto",
+			});
 
-		// Check if AI wants to call function(s)
-		if (responseMessage.tool_calls) {
-			console.log(`🔧 AI calling ${responseMessage.tool_calls.length} function(s):`,
-				responseMessage.tool_calls.map(fc => fc.function.name).join(', '));
+			const responseMessage = completion.choices[0].message;
 
-			// Map OpenAI tool_calls to our internal functionCalls format
-			// Our internal format expects: { name, args }
-			// OpenAI format: { id, type, function: { name, arguments } }
-			const functionCalls = responseMessage.tool_calls.map(tc => ({
-				name: tc.function.name,
-				args: JSON.parse(tc.function.arguments),
-				id: tc.id // Keep ID if needed for tool_output later (though we currently just execute and reply)
-			}));
+			// Check if AI wants to call function(s)
+			if (responseMessage.tool_calls) {
+				console.log(`🔧 [${keyName}] AI calling ${responseMessage.tool_calls.length} function(s):`,
+					responseMessage.tool_calls.map(fc => fc.function.name).join(', '));
 
-			return {
-				type: 'function_call',
-				functionCalls: functionCalls
-			};
+				const functionCalls = responseMessage.tool_calls.map(tc => ({
+					name: tc.function.name,
+					args: JSON.parse(tc.function.arguments),
+					id: tc.id
+				}));
+
+				return {
+					type: 'function_call',
+					functionCalls: functionCalls
+				};
+			}
+
+			// Normal text response
+			if (!responseMessage.content) {
+				return "Ups, respons AI kosong. Coba tanyakan lagi.";
+			}
+
+			console.log(`✅ [${keyName}] Main AI response successful`);
+			return responseMessage.content.trim();
+
+		} catch (error) {
+			if (error.status === 429) {
+				console.warn(`⚠️ [${keyName}] Rate limited (429), trying next key...`);
+				continue; // Try next client
+			}
+			// For other errors, log and continue to next client
+			console.error(`❌ [${keyName}] Error:`, error.message || error);
+			continue;
 		}
-
-		// Normal text response
-		if (!responseMessage.content) {
-			return "Ups, respons AI kosong. Coba tanyakan lagi.";
-		}
-		return responseMessage.content.trim();
-	} catch (error) {
-		console.error("Kesalahan panggilan Gemini Chat API (OpenAI SDK):", error);
-		return "Aduh, AI-Haikaru sedang gagal mengingat. Ada apa ya? Coba tanyakan lagi.";
 	}
+
+	// All keys exhausted - show rate limit message
+	console.error("🚫 All Main AI keys exhausted (rate limited)");
+	return "🚫 *AI-Haikaru sedang istirahat!*\n\n" +
+		"Kuota harian tercapai. Layanan akan aktif kembali pada:\n" +
+		"📅 *07:00 WIB (00:00 UTC)*\n\n" +
+		"_Terima kasih atas pengertiannya!_ 🙏";
 }
 
 export async function getGeminiResponse(
@@ -222,50 +240,80 @@ export async function getGeminiResponse(
 
 /**
  * Helper function untuk melakukan Google Search via Gemini Grounding
- * Ini dipanggil oleh functionHandler saat AI memilih 'perform_google_search'
- * NOTE: Karena OpenAI SDK tidak support native grounding, kita gunakan fetch langsung ke endpoint Gemini.
+ * Fallback chain: Tertiary → Quaternary → OpenAI (without grounding)
  */
 import fetch from 'node-fetch';
 
 export async function getGroundedResponse(bot, query) {
-	if (!bot.geminiApiKey) {
-		throw new Error("Gemini API Key not found");
-	}
-
 	// Use model from config or default
-	const groundingModel = bot.config.ai?.models?.grounding || "gemini-2.5-flash";
-	const url = `https://generativelanguage.googleapis.com/v1beta/models/${groundingModel}:generateContent?key=${bot.geminiApiKey}`;
+	const groundingModel = bot.config.ai?.gemini?.models?.grounding || "gemini-2.0-flash-lite";
+	const fallbackModel = bot.config.ai?.openai?.models?.fallback || "gpt-4o-mini";
 
-	const payload = {
-		contents: [{ parts: [{ text: query }] }],
-		tools: [{ googleSearch: {} }], // Native grounding
-		generationConfig: { temperature: 0.7 }
-	};
+	// Build API key fallback chain for grounding
+	const geminiKeys = [
+		{ key: bot.geminiApiKey3, name: "Tertiary" },
+		{ key: bot.geminiApiKey4, name: "Quaternary" }
+	].filter(k => k.key);
 
-	try {
-		const response = await fetch(url, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(payload)
-		});
+	// Try Gemini keys with native grounding
+	for (const { key, name } of geminiKeys) {
+		const url = `https://generativelanguage.googleapis.com/v1beta/models/${groundingModel}:generateContent?key=${key}`;
 
-		if (!response.ok) {
-			throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+		const payload = {
+			contents: [{ parts: [{ text: query }] }],
+			tools: [{ googleSearch: {} }],
+			generationConfig: { temperature: 0.7 }
+		};
+
+		try {
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+
+			if (response.status === 429) {
+				console.warn(`⚠️ [${name}] Grounding rate limited (429), trying next key...`);
+				continue;
+			}
+
+			if (!response.ok) {
+				console.warn(`⚠️ [${name}] Grounding HTTP ${response.status}, trying next key...`);
+				continue;
+			}
+
+			const data = await response.json();
+
+			if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+				console.log(`✅ [${name}] Grounding successful`);
+				return data.candidates[0].content.parts.map(p => p.text).join('').trim();
+			}
+		} catch (error) {
+			console.error(`❌ [${name}] Grounding error:`, error.message);
+			continue;
 		}
-
-		const data = await response.json();
-
-		// Extract text from Gemini REST response
-		if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
-			return data.candidates[0].content.parts.map(p => p.text).join('').trim();
-		}
-
-		console.warn("Grounded Search: Respons text dari Gemini kosong.", JSON.stringify(data));
-		return "Ups, hasil pencarian kosong atau tidak ditemukan.";
-	} catch (error) {
-		console.error("Grounded Search Error:", error);
-		return `Gagal melakukan pencarian: ${error.message}`;
 	}
+
+	// Fallback to OpenAI (without grounding - just answer based on training data)
+	if (bot.openaiClient) {
+		try {
+			console.log("⚠️ All Gemini grounding keys exhausted, falling back to OpenAI...");
+			const completion = await bot.openaiClient.chat.completions.create({
+				model: fallbackModel,
+				messages: [
+					{ role: "system", content: "Jawab pertanyaan berikut dengan pengetahuan yang kamu miliki. Jika tidak yakin, katakan bahwa informasi mungkin tidak terbaru." },
+					{ role: "user", content: query }
+				],
+				temperature: 0.7
+			});
+			console.log("✅ [OpenAI Fallback] Response successful");
+			return completion.choices[0].message.content.trim();
+		} catch (error) {
+			console.error("❌ [OpenAI Fallback] Error:", error.message);
+		}
+	}
+
+	return "Ups, semua layanan pencarian sedang tidak tersedia. Coba lagi nanti.";
 }
 
 /**
@@ -337,10 +385,17 @@ Output WAJIB JSON format:
 
 /**
  * Menganalisis intent pesan untuk menentukan apakah butuh deep context (history panjang).
- * Menggunakan model cepat (Flash) untuk keputusan instan.
+ * Fallback chain: Tertiary → Quaternary → OpenAI
  */
 export async function analyzeContextIntent(bot, messageBody) {
-	if (!bot.openai) return false;
+	// Build client fallback chain: Tertiary → Quaternary → OpenAI
+	const clients = [
+		{ client: bot.geminiTertiary, name: "Tertiary", model: bot.config.ai?.gemini?.models?.contextAnalyzer || "gemini-2.0-flash-lite" },
+		{ client: bot.geminiQuaternary, name: "Quaternary", model: bot.config.ai?.gemini?.models?.contextAnalyzer || "gemini-2.0-flash-lite" },
+		{ client: bot.openaiClient, name: "OpenAI", model: bot.config.ai?.openai?.models?.fallback || "gpt-4o-mini" }
+	].filter(c => c.client);
+
+	if (clients.length === 0) return false;
 
 	const systemInstruction = `
 Kamu adalah AI classifier. Tugasmu hanya satu: Menentukan apakah pesan user membutuhkan ingatan masa lalu (long-term memory) atau konteks percakapan yang panjang.
@@ -353,26 +408,35 @@ Output WAJIB JSON:
 { "requiresMemory": boolean }
 `;
 
-	try {
-		// Use model from Gemini config or default
-		const model = bot.config.ai?.gemini?.models?.contextAnalyzer || "gemini-2.5-flash";
-		const completion = await bot.openai.chat.completions.create({
-			model: model,
-			messages: [
-				{ role: "system", content: systemInstruction },
-				{ role: "user", content: messageBody }
-			],
-			temperature: 0.5,
-			response_format: { type: "json_object" }
-		});
+	for (const { client, name, model } of clients) {
+		try {
+			const completion = await client.chat.completions.create({
+				model: model,
+				messages: [
+					{ role: "system", content: systemInstruction },
+					{ role: "user", content: messageBody }
+				],
+				temperature: 0.5,
+				response_format: { type: "json_object" }
+			});
 
-		const responseText = completion.choices[0].message.content;
-		if (!responseText) return false;
+			const responseText = completion.choices[0].message.content;
+			if (!responseText) continue;
 
-		const result = JSON.parse(responseText);
-		return result.requiresMemory || false;
-	} catch (error) {
-		console.error("⚠️ Gagal analisis intent context (OpenAI SDK):", error.message);
-		return false; // Default to fast mode on error
+			const result = JSON.parse(responseText);
+			console.log(`✅ [${name}] Context analysis successful`);
+			return result.requiresMemory || false;
+		} catch (error) {
+			if (error.status === 429) {
+				console.warn(`⚠️ [${name}] Context analyzer rate limited (429), trying next...`);
+				continue;
+			}
+			console.error(`❌ [${name}] Context analyzer error:`, error.message);
+			continue;
+		}
 	}
+
+	// All failed, default to fast mode
+	console.warn("⚠️ All context analyzer keys exhausted, defaulting to fast mode");
+	return false;
 }

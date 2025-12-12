@@ -38,24 +38,51 @@ class WhatsAppBot {
         const geminiBaseURL = config.ai?.gemini?.baseURL || "https://generativelanguage.googleapis.com/v1beta/openai/";
         const openaiBaseURL = config.ai?.openai?.baseURL || "https://api.openai.com/v1";
 
-        // Main AI - Uses GEMINI_API_KEY_3 (Gemini endpoint)
-        if (process.env.GEMINI_API_KEY_3) {
-            this.geminiApiKey = process.env.GEMINI_API_KEY_3;
-            this.openai = new OpenAI({
-                apiKey: this.geminiApiKey,
+        // Main AI - Primary (GEMINI_API_KEY)
+        if (process.env.GEMINI_API_KEY) {
+            this.geminiPrimary = new OpenAI({
+                apiKey: process.env.GEMINI_API_KEY,
                 baseURL: geminiBaseURL
             });
-            console.log("✅ Main AI client (GEMINI_API_KEY_3) - Gemini");
+            console.log("✅ Main AI Primary (GEMINI_API_KEY)");
         }
 
-        // Helper & Reaction AI - Uses OPENAI_API_KEY (OpenAI endpoint)
+        // Main AI - Secondary (GEMINI_API_KEY_2)
+        if (process.env.GEMINI_API_KEY_2) {
+            this.geminiSecondary = new OpenAI({
+                apiKey: process.env.GEMINI_API_KEY_2,
+                baseURL: geminiBaseURL
+            });
+            console.log("✅ Main AI Secondary (GEMINI_API_KEY_2)");
+        }
+
+        // Context/Grounding - Tertiary (GEMINI_API_KEY_3)
+        if (process.env.GEMINI_API_KEY_3) {
+            this.geminiTertiary = new OpenAI({
+                apiKey: process.env.GEMINI_API_KEY_3,
+                baseURL: geminiBaseURL
+            });
+            this.geminiApiKey3 = process.env.GEMINI_API_KEY_3; // For grounding fetch
+            console.log("✅ Context/Grounding Tertiary (GEMINI_API_KEY_3)");
+        }
+
+        // Context/Grounding - Quaternary (GEMINI_API_KEY_4)
+        if (process.env.GEMINI_API_KEY_4) {
+            this.geminiQuaternary = new OpenAI({
+                apiKey: process.env.GEMINI_API_KEY_4,
+                baseURL: geminiBaseURL
+            });
+            this.geminiApiKey4 = process.env.GEMINI_API_KEY_4; // For grounding fetch
+            console.log("✅ Context/Grounding Quaternary (GEMINI_API_KEY_4)");
+        }
+
+        // OpenAI - Helper, Reaction, Fallback (OPENAI_API_KEY)
         if (process.env.OPENAI_API_KEY) {
-            this.openaiApiKey = process.env.OPENAI_API_KEY;
             this.openaiClient = new OpenAI({
-                apiKey: this.openaiApiKey,
+                apiKey: process.env.OPENAI_API_KEY,
                 baseURL: openaiBaseURL
             });
-            console.log("✅ Helper/Reaction AI client (OPENAI_API_KEY) - OpenAI");
+            console.log("✅ Helper/Reaction/Fallback (OPENAI_API_KEY) - OpenAI");
         }
     }
 
