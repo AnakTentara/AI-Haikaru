@@ -15,11 +15,14 @@ import { HAIKARU_PERSONA, HELPER_PERSONA } from './persona.js';
 export async function getGeminiChatResponse(
 	bot,
 	chatHistory,
-	modelName = "gemini-2.5-flash-lite",
+	modelName = null,
 ) {
 	if (!bot.openai) {
 		return "Maaf, fitur AI sedang tidak aktif. Harap hubungi pengembang (Haikal).";
 	}
+
+	// Use model from config or default
+	const model = modelName || bot.config.ai?.models?.main || "gemini-2.5-flash-lite";
 
 	const systemInstruction = HAIKARU_PERSONA;
 
@@ -138,7 +141,7 @@ export async function getGeminiChatResponse(
 
 	try {
 		const completion = await bot.openai.chat.completions.create({
-			model: modelName,
+			model: model,
 			messages: messages,
 			temperature: 0.8,
 			tools: tools,
@@ -181,7 +184,7 @@ export async function getGeminiChatResponse(
 export async function getGeminiResponse(
 	bot,
 	userPrompt,
-	modelName = "gemini-2.0-flash-lite",
+	modelName = null,
 ) {
 	const openaiClient = bot.openai2 || bot.openai;
 
@@ -190,11 +193,13 @@ export async function getGeminiResponse(
 		return "Maaf, fitur AI sedang tidak aktif. Harap hubungi pengembang (Haikal).";
 	}
 
+	// Use model from config or default
+	const model = modelName || bot.config.ai?.models?.helper || "gemini-2.0-flash-lite";
 	const systemInstruction = HELPER_PERSONA;
 
 	try {
 		const completion = await openaiClient.chat.completions.create({
-			model: modelName,
+			model: model,
 			messages: [
 				{ role: "system", content: systemInstruction },
 				{ role: "user", content: userPrompt }
@@ -204,7 +209,12 @@ export async function getGeminiResponse(
 
 		return completion.choices[0].message.content.trim();
 	} catch (error) {
-		console.error("Kesalahan panggilan Gemini API (OpenAI SDK):", error);
+		// Graceful handling for rate limit
+		if (error.status === 429) {
+			console.warn("⚠️ Helper AI rate limited (429), returning fallback message");
+			return "✨"; // Return minimal placeholder so command can still work
+		}
+		console.error("Kesalahan panggilan Gemini API (OpenAI SDK):", error.message || error);
 		return "Aduh, AI-Haikaru sedang sakit kepala! Coba ulangi sebentar lagi, ya.";
 	}
 }
@@ -221,7 +231,9 @@ export async function getGroundedResponse(bot, query) {
 		throw new Error("Gemini API Key not found");
 	}
 
-	const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${bot.geminiApiKey}`;
+	// Use model from config or default
+	const groundingModel = bot.config.ai?.models?.grounding || "gemini-2.5-flash";
+	const url = `https://generativelanguage.googleapis.com/v1beta/models/${groundingModel}:generateContent?key=${bot.geminiApiKey}`;
 
 	const payload = {
 		contents: [{ parts: [{ text: query }] }],
@@ -297,8 +309,10 @@ Output WAJIB JSON format:
 	}
 
 	try {
+		// Use model from config or default
+		const reactionModel = bot.config.ai?.models?.reaction || "gemini-2.0-flash-lite";
 		const completion = await openaiClient.chat.completions.create({
-			model: "gemini-2.0-flash-lite", // Model lite untuk reaction (cost-efficient)
+			model: reactionModel,
 			messages: messages,
 			temperature: 1.0,
 			response_format: { type: "json_object" }
@@ -339,8 +353,10 @@ Output WAJIB JSON:
 `;
 
 	try {
+		// Use model from config or default
+		const model = bot.config.ai?.models?.contextAnalyzer || "gemini-2.5-flash";
 		const completion = await bot.openai.chat.completions.create({
-			model: "gemini-2.5-flash",
+			model: model,
 			messages: [
 				{ role: "system", content: systemInstruction },
 				{ role: "user", content: messageBody }

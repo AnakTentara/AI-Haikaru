@@ -34,34 +34,35 @@ class WhatsAppBot {
         this.config = config;
         this.version = config.version;
 
+        // AI Configuration from config.json
+        const aiBaseURL = config.ai?.baseURL || "https://generativelanguage.googleapis.com/v1beta/openai/";
+
         if (process.env.GEMINI_API_KEY) {
             this.geminiApiKey = process.env.GEMINI_API_KEY;
             // Initialize OpenAI client pointing to Google's Gemini endpoint
             this.openai = new OpenAI({
                 apiKey: this.geminiApiKey,
-                baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+                baseURL: aiBaseURL
             });
-            console.log("✅ Primary OpenAI client (GEMINI_API_KEY)");
+            console.log("✅ Primary OpenAI client (GEMINI_API_KEY) - Main AI");
         }
 
-        // Secondary Gemini API Key for cost-saving operations
-        // (emoji reactions, prompt enhancement, etc.)
+        // Secondary Gemini API Key for helper operations
         if (process.env.GEMINI_API_KEY_2) {
             this.geminiApiKey2 = process.env.GEMINI_API_KEY_2;
             this.openai2 = new OpenAI({
                 apiKey: this.geminiApiKey2,
-                baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+                baseURL: aiBaseURL
             });
             console.log("✅ Secondary OpenAI client (GEMINI_API_KEY_2) - Helper AI");
         }
 
         // Tertiary Gemini API Key for emoji reactions
-        // Uses Gemma models for cost-efficiency
         if (process.env.GEMINI_API_KEY_3) {
             this.geminiApiKey3 = process.env.GEMINI_API_KEY_3;
             this.openai3 = new OpenAI({
                 apiKey: this.geminiApiKey3,
-                baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+                baseURL: aiBaseURL
             });
             console.log("✅ Tertiary OpenAI client (GEMINI_API_KEY_3) - Reaction AI");
         }
