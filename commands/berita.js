@@ -81,7 +81,7 @@ export default {
             for (const { client, name: keyName } of beritaClients) {
                 try {
                     const completion = await client.chat.completions.create({
-                        model: "gemini-2.5-pro",
+                        model: "gemini-2.5-flash",
                         messages: messages,
                         temperature: 0.8,
                     });
