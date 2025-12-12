@@ -52,7 +52,18 @@ class WhatsAppBot {
                 apiKey: this.geminiApiKey2,
                 baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
             });
-            console.log("✅ Secondary OpenAI client (GEMINI_API_KEY_2)");
+            console.log("✅ Secondary OpenAI client (GEMINI_API_KEY_2) - Helper AI");
+        }
+
+        // Tertiary Gemini API Key for emoji reactions
+        // Uses Gemma models for cost-efficiency
+        if (process.env.GEMINI_API_KEY_3) {
+            this.geminiApiKey3 = process.env.GEMINI_API_KEY_3;
+            this.openai3 = new OpenAI({
+                apiKey: this.geminiApiKey3,
+                baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+            });
+            console.log("✅ Tertiary OpenAI client (GEMINI_API_KEY_3) - Reaction AI");
         }
     }
 

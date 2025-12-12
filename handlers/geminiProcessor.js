@@ -15,7 +15,7 @@ import { HAIKARU_PERSONA, HELPER_PERSONA } from './persona.js';
 export async function getGeminiChatResponse(
 	bot,
 	chatHistory,
-	modelName = "gemini-2.5-flash",
+	modelName = "gemini-2.5-flash-lite",
 ) {
 	if (!bot.openai) {
 		return "Maaf, fitur AI sedang tidak aktif. Harap hubungi pengembang (Haikal).";
@@ -181,7 +181,7 @@ export async function getGeminiChatResponse(
 export async function getGeminiResponse(
 	bot,
 	userPrompt,
-	modelName = "gemini-flash-latest",
+	modelName = "gemma-3-27b",
 ) {
 	const openaiClient = bot.openai2 || bot.openai;
 
@@ -260,8 +260,8 @@ export async function getGroundedResponse(bot, query) {
  * Menggunakan mode JSON untuk output terstruktur.
  */
 export async function analyzeEmojiReaction(bot, chatHistory) {
-	// Use secondary API key if available for cost savings  
-	const openaiClient = bot.openai2 || bot.openai;
+	// Use tertiary API key (GEMINI_API_KEY_3) dedicated for reactions
+	const openaiClient = bot.openai3 || bot.openai2 || bot.openai;
 	if (!openaiClient) return null;
 
 
@@ -298,7 +298,7 @@ Output WAJIB JSON format:
 
 	try {
 		const completion = await openaiClient.chat.completions.create({
-			model: "gemini-2.0-flash-lite-preview-02-05", // Gunakan model lite untuk hemat token
+			model: "gemma-3-27b", // Gunakan Gemma 3 untuk reaction (cost-efficient)
 			messages: messages,
 			temperature: 1.0,
 			response_format: { type: "json_object" }
@@ -310,7 +310,12 @@ Output WAJIB JSON format:
 		const result = JSON.parse(responseText);
 		return result;
 	} catch (error) {
-		console.error("❌ Gagal menganalisis reaksi emoji (OpenAI SDK):", error);
+		// Graceful handling for rate limit - skip reaction silently
+		if (error.status === 429) {
+			console.warn("⚠️ Emoji reaction skipped: Rate limit exceeded (429)");
+			return null;
+		}
+		console.error("❌ Gagal menganalisis reaksi emoji (OpenAI SDK):", error.message || error);
 		return null;
 	}
 }
