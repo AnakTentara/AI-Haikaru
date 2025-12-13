@@ -13,6 +13,8 @@ export default {
         const baseUrl = process.env.DATASET_BASE_URL || "http://vps.haikaldev.my.id:3001";
         const adminSecret = process.env.DATASET_SECRET || "default-secret";
 
+        Logger.info("EDIT_DATA", `Requesting token from: ${baseUrl}`);
+
         try {
             // Request dynamic token from Web App
             const response = await fetch(`${baseUrl}/api/admin/generate-token`, {
