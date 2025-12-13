@@ -10,7 +10,12 @@ export default {
     triggers: [".edit_data_berita_man"],
 
     async execute(message, args, bot) {
-        const baseUrl = process.env.DATASET_BASE_URL || "http://vps.haikaldev.my.id:3001";
+        let baseUrl = process.env.DATASET_BASE_URL || "http://vps.haikaldev.my.id:3001";
+        // Force HTTP if port 3001 to avoid SSL error
+        if (baseUrl.includes(":3001") && baseUrl.startsWith("https://")) {
+            baseUrl = baseUrl.replace("https://", "http://");
+        }
+        
         const adminSecret = process.env.DATASET_SECRET || "default-secret";
 
         Logger.info("EDIT_DATA", `Requesting token from: ${baseUrl}`);
