@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fetch from 'node-fetch';
 import Logger from "../handlers/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -8,8 +9,41 @@ const __dirname = path.dirname(__filename);
 
 // Load prompt files
 const configPath = path.join(__dirname, '..', 'config', 'berita');
-const basePrompt = fs.readFileSync(path.join(configPath, 'base.txt'), 'utf8');
 const newsPrompt = fs.readFileSync(path.join(configPath, 'news.txt'), 'utf8');
+
+// Configuration for remote dataset
+const DATASET_BASE_URL = process.env.DATASET_BASE_URL || "http://vps.haikaldev.my.id:3001";
+const DATASET_SECRET = process.env.DATASET_SECRET || "default-secret";
+
+// Helper to fetch base text
+async function getBaseContext() {
+    try {
+        const url = `${DATASET_BASE_URL}/api/get-data`;
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${DATASET_SECRET}`
+            },
+            signal: AbortSignal.timeout(5000)
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const text = await response.text();
+        if (text.length < 50) throw new Error("Content too short");
+
+        return text;
+    } catch (error) {
+        Logger.warn("BERITA", `Failed to fetch remote dataset: ${error.message}. Using local fallback if available.`);
+        // Fallback to local file checking for .bak just in case user reverted or something (keeping simple)
+        try {
+            return fs.readFileSync(path.join(configPath, 'base.txt.bak'), 'utf8');
+        } catch (filesError) {
+            return "Maaf, data informasi sekolah tidak tersedia saat ini.";
+        }
+    }
+}
 
 // Get initial from name (3 letters, capitalized first)
 function getInitial(name) {
@@ -58,6 +92,9 @@ export default {
             cleanedInputText = inputText.replace(/penulis:\s*\w+\s*/i, '').trim();
             Logger.info("BERITA", `Author: ${authorName}, Initial: ${authorInitial}`);
         }
+
+        // Fetch up-to-date base context
+        const basePrompt = await getBaseContext();
 
         // Build system prompt (no history - standalone request)
         const instructionForThisRequest = `\n\nInstruksi Tambahan:\n- Gunakan inisial penulis di akhir berita: ${authorInitial}\n`;
