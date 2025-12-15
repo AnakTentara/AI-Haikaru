@@ -37,7 +37,7 @@ async function getBaseContext() {
 
         return text;
     } catch (error) {
-        Logger.warn("BERITA", `Failed to fetch remote dataset: ${error.message}. Using local fallback if available.`);
+        Logger.warning("BERITA", `Failed to fetch remote dataset: ${error.message}. Using local fallback if available.`);
         // Fallback to local file checking for .bak just in case user reverted or something (keeping simple)
         try {
             return fs.readFileSync(path.join(configPath, 'base.txt.bak'), 'utf8');

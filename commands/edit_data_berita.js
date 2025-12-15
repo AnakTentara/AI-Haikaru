@@ -15,7 +15,7 @@ export default {
 
         // Both API and Web User Link use the same base
         const apiUrl = baseUrl;
-        const webUrlBase = baseUrl;
+        const webUrlBase = process.env.DATASET_WEB_BASE_URL || "https://dataset-man.haikaldev.my.id";
 
         const adminSecret = process.env.DATASET_SECRET || "1420057752Delapan823062025Haikal";
 
