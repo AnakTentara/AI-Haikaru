@@ -10,11 +10,12 @@ export default {
     triggers: [".edit_data_berita_man"],
 
     async execute(message, args, bot) {
-        // 1. API URL (VPS Backend) - Used by Bot to generate token
-        const apiUrl = "http://localhost:3001"; 
-        
-        // 2. Web URL (CPanel Frontend) - Used by User to access Editor
-        const webUrlBase = "https://dataset-man.haikaldev.my.id";
+        // CPanel Deployment: API and Web are on the same domain
+        const baseUrl = process.env.DATASET_BASE_URL || "https://dataset-man.haikaldev.my.id";
+
+        // Both API and Web User Link use the same base
+        const apiUrl = baseUrl;
+        const webUrlBase = baseUrl;
 
         const adminSecret = process.env.DATASET_SECRET || "default-secret";
 
@@ -28,8 +29,8 @@ export default {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${adminSecret}`
                 },
-                body: JSON.stringify({ 
-                    expires_in: '24h' 
+                body: JSON.stringify({
+                    expires_in: '24h'
                 })
             });
 
@@ -41,10 +42,10 @@ export default {
 
             const data = await response.json();
             const token = data.token;
-            
+
             // Construct Web URL for User (Pointing to CPanel Frontend)
             const finalLink = `${webUrlBase}/?token=${token}`;
-            
+
             return message.reply(
                 "📝 *Editor Data Sekolah (Secure Link)*\n\n" +
                 "Klik link berikut untuk akses editor (Valid 24 Jam):\n" +

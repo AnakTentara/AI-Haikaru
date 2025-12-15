@@ -18,7 +18,7 @@ const DATASET_SECRET = process.env.DATASET_SECRET || "default-secret";
 // Helper to fetch base text
 async function getBaseContext() {
     try {
-        const url = `${DATASET_BASE_URL}/api/get-data`;
+        const url = `${DATASET_BASE_URL}/api/content`;
 
         const response = await fetch(url, {
             method: 'GET',
@@ -30,8 +30,10 @@ async function getBaseContext() {
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-        const text = await response.text();
-        if (text.length < 50) throw new Error("Content too short");
+        const data = await response.json();
+        const text = data.content;
+
+        if (!text || text.length < 50) throw new Error("Content empty or too short");
 
         return text;
     } catch (error) {

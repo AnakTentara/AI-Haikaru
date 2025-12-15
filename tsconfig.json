@@ -10,7 +10,7 @@
         "outDir": "./dist"
     },
     "include": [
-        "server.ts"
+        "frontend/server.ts"
     ],
     "ts-node": {
         "esm": true
