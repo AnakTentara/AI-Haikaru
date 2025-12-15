@@ -10,21 +10,26 @@ export default {
     triggers: [".edit_data_berita_man"],
 
     async execute(message, args, bot) {
-        const baseUrl = process.env.DATASET_BASE_URL || "https://dataset-man.haikaldev.my.id";
+        // 1. API URL (VPS Backend) - Used by Bot to generate token
+        const apiUrl = "http://localhost:3001"; 
+        
+        // 2. Web URL (CPanel Frontend) - Used by User to access Editor
+        const webUrlBase = "https://dataset-man.haikaldev.my.id";
+
         const adminSecret = process.env.DATASET_SECRET || "default-secret";
 
-        Logger.info("EDIT_DATA", `Requesting token from: ${baseUrl}`);
+        Logger.info("EDIT_DATA", `Requesting token from API: ${apiUrl}`);
 
         try {
-            // Request dynamic token from Web App
-            const response = await fetch(`${baseUrl}/api/admin/generate-token`, {
+            // Request dynamic token from VPS Backend (Localhost)
+            const response = await fetch(`${apiUrl}/api/admin/generate-token`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${adminSecret}`
                 },
-                body: JSON.stringify({
-                    expires_in: '24h' // Matches Bolt API spec
+                body: JSON.stringify({ 
+                    expires_in: '24h' 
                 })
             });
 
@@ -36,14 +41,14 @@ export default {
 
             const data = await response.json();
             const token = data.token;
-
-            // Construct Web URL (Login Path)
-            const webUrl = `${baseUrl}/login?token=${token}`;
-
+            
+            // Construct Web URL for User (Pointing to CPanel Frontend)
+            const finalLink = `${webUrlBase}/?token=${token}`;
+            
             return message.reply(
-                "📝 *Editor Data Sekolah (Self-Hosted)*\n\n" +
+                "📝 *Editor Data Sekolah (Secure Link)*\n\n" +
                 "Klik link berikut untuk akses editor (Valid 24 Jam):\n" +
-                `${webUrl}\n\n` +
+                `${finalLink}\n\n` +
                 "⚠️ *Link ini bersifat rahasia dan sekali pakai.*"
             );
         } catch (error) {
