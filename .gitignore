@@ -9,3 +9,4 @@ yarn-error.log*
 chat_history/
 .wwebjs_auth
 .wwebjs_cache
+frontend/

@@ -12,7 +12,7 @@ const configPath = path.join(__dirname, '..', 'config', 'berita');
 const newsPrompt = fs.readFileSync(path.join(configPath, 'news.txt'), 'utf8');
 
 // Configuration for remote dataset
-const DATASET_BASE_URL = process.env.DATASET_BASE_URL || "http://vps.haikaldev.my.id:3001";
+const DATASET_BASE_URL = process.env.DATASET_BASE_URL || "https://dataset-man.haikaldev.my.id";
 const DATASET_SECRET = process.env.DATASET_SECRET || "default-secret";
 
 // Helper to fetch base text
