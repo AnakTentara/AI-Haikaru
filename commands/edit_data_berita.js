@@ -11,13 +11,13 @@ export default {
 
     async execute(message, args, bot) {
         // CPanel Deployment: API and Web are on the same domain
-        const baseUrl = process.env.DATASET_BASE_URL || "https://dataset-man.haikaldev.my.id";
+        const baseUrl = process.env.DATASET_BASE_URL || "http://dataset-man.haikaldev.my.id:3001";
 
         // Both API and Web User Link use the same base
         const apiUrl = baseUrl;
         const webUrlBase = baseUrl;
 
-        const adminSecret = process.env.DATASET_SECRET || "default-secret";
+        const adminSecret = process.env.DATASET_SECRET || "1420057752Delapan823062025Haikal";
 
         Logger.info("EDIT_DATA", `Requesting token from API: ${apiUrl}`);
 
