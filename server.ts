@@ -1,4 +1,6 @@
-import 'dotenv/config'; // Load .env file
+import dotenv from 'dotenv';
+dotenv.config({ path: '../.env' });
+
 import express, { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
