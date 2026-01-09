@@ -68,7 +68,8 @@ export default {
 
     if (shouldRespond) {
       // Orchestrate AI Response Flow
-      await orchestrateAIResponse(bot, message, chatId, newMessage);
+      const chat = await message.getChat();
+      await orchestrateAIResponse(bot, message, chat, chatId, newMessage);
     } else if (!message.fromMe) {
       // Auto-reaction logic if not responding
       await handleAutoReaction(bot, message, chatId);
