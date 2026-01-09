@@ -7,10 +7,9 @@ module.exports = {
             // PENTING: Ignore folder data agar bot tidak restart saat ada edit berita/token baru
             ignore_watch: [
                 "node_modules",
-                "config/berita",
-                "data",
-                "frontend",
                 ".git",
+                ".local",
+                "data",
                 ".wwebjs_auth",
                 ".wwebjs_cache",
                 "logs"
