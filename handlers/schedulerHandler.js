@@ -109,7 +109,13 @@ class SchedulerHandler {
             const chat = await this.bot.client.getChatById(task.chatId);
 
             if (task.type === 'reminder') {
-                await chat.sendMessage(`⏰ *PENGINGAT OTOMATIS*\n\n"${task.payload.text}"`);
+                const reminderText = task.payload.text;
+
+                // Use AI to humanize the reminder
+                const prompt = `User minta diingatkan: "${reminderText}". Sampaikan pengingat ini ke user dengan gaya santai, akrab, dan sedikit lucu khas Haikaru (gunakan emoji). Jangan terlalu panjang.`;
+                const aiMessage = await getGeminiResponse(this.bot, prompt, []); // Empty history for now
+
+                await chat.sendMessage(`${aiMessage}\n\n> Pengingat Otomatis`);
             }
             else if (task.type === 'image_generation') {
                 await chat.sendMessage(`🎨 *AUTO GENERATE*\nMenjalankan perintah gambar: "${task.payload.prompt}"...`);
