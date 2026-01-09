@@ -112,7 +112,12 @@ class SchedulerHandler {
                 const reminderText = task.payload.text;
 
                 // Use AI to humanize the reminder
-                const prompt = `User minta diingatkan: "${reminderText}". Sampaikan pengingat ini ke user dengan gaya santai, akrab, dan sedikit lucu khas Haikaru (gunakan emoji). Jangan terlalu panjang.`;
+                const prompt = `SEKARANG SUDAH WAKTUNYA! Tugasmu adalah menyampaikan pengingat ini ke user: "${reminderText}".
+                
+                Instruksi:
+                1. Langsung sampaikan isinya. Jangan bilang "Oke aku ingetin", karena ini SUDAH waktunya.
+                2. Gunakan gaya santai, akrab, dan sedikit lucu khas Haikaru.
+                3. Contoh: "Woy Boss, waktunya ganti API Key nih! Jangan lupa ya!"`;
                 const aiMessage = await getGeminiResponse(this.bot, prompt, []); // Empty history for now
 
                 await chat.sendMessage(`${aiMessage}\n\n> Pengingat Otomatis`);
