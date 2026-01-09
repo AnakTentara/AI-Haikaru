@@ -26,67 +26,68 @@ export default {
     const isCommand = await handleCommands(bot, message);
     if (isCommand) return;
 
-    // 3. Prepare AI Context & Process Media
+    // 3. Prepare AI Context
     const senderWID = message.author || from;
-
     let senderName = "Unknown";
     try {
       const contact = await message.getContact();
       senderName = contact.name || message._data.notifyName || "Unknown";
     } catch (error) {
-      // Fallback if contact fetch fails (common in wwebjs)
       senderName = message._data.notifyName || "Unknown";
     }
 
     const senderPhone = senderWID.split("@")[0];
-
-    // Identity format: [Name/Phone/JID]
-    // Example: [Haikal/6289675732001/6289675732001@c.us]
     const identityTag = `[${senderName}/${senderPhone}/${senderWID}]`;
-
     const timeStr = new Date(message.timestamp * 1000).toLocaleTimeString("id-ID", {
       hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta"
     });
 
-    // Clean user text from mentions (only for cleanText processing, raw text might be needed)
     const targetUserIds = config.targetUserIds || [];
     const mentionRegex = new RegExp(`@(${targetUserIds.join("|")})`, "g");
     const cleanText = body.replace(mentionRegex, "").trim();
-
     let fullText = `${cleanText}`;
 
-    // Handle Quoted Message (Reply Context)
+    // 4. Determine Response Logic & Context (Quote)
+    const botId = bot.client.info.wid.user;
+    const chatObj = await message.getChat();
+    const isPrivateChat = !chatObj.isGroup;
+    const isMentioned = mentionedIds.some(m => targetUserIds.some(t => m.startsWith(t)));
+
     let isReplyToBot = false;
-    let quotedBody = "";
     if (hasQuotedMsg) {
       const quoted = await message.getQuotedMessage();
       isReplyToBot = quoted.fromMe || quoted.author?.startsWith(botId) || quoted.from?.startsWith(botId);
 
-      // Limit quoted text length for sanity
-      quotedBody = quoted.body.substring(0, 100).replace(/\n/g, " ");
+      const quotedBody = quoted.body.substring(0, 100).replace(/\n/g, " ");
       fullText += `\n[Replying to: "${quotedBody}"]`;
     }
 
+    // 5. Construct Message Object
     const newMessage = {
       role: "user",
       text: `[${timeStr}] ${identityTag}: ${fullText}`
     };
 
-    const shouldRespond = isPrivate || isMentioned || isReplyToBot;
+    // 6. Process Media (Images, Docs, Audio) - May update newMessage
+    const mediaData = await processIncomingMedia(bot, message);
+    if (mediaData) {
+      if (mediaData.image) newMessage.image = mediaData.image;
+      if (mediaData.systemNote) newMessage.text += mediaData.systemNote;
+    }
+
+    // 7. Save to History
+    await appendChatMessage(chatId, newMessage);
+
+    // 8. Execute Response or Reaction
+    const shouldRespond = isPrivateChat || isMentioned || isReplyToBot;
 
     if (shouldRespond) {
-      // Orchestrate AI Response Flow
-      const chat = await message.getChat();
-      await orchestrateAIResponse(bot, message, chat, chatId, newMessage);
+      await orchestrateAIResponse(bot, message, chatObj, chatId, newMessage);
     } else if (!message.fromMe) {
-      // Auto-reaction logic if not responding
       await handleAutoReaction(bot, message, chatId);
     }
 
-    // 6. Start Autonomous Monitoring (if Group)
-    const chatObj = await message.getChat();
-    const isPrivateChat = !chatObj.isGroup;
-
+    // 9. Start Autonomous Monitoring (if Group)
     if (!isPrivateChat && bot.autonomous) {
       bot.autonomous.startMonitoring(chatId);
     }
