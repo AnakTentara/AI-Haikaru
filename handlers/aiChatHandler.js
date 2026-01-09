@@ -105,8 +105,18 @@ async function handleFunctionCalls(bot, message, chat, chatId, chatHistory, func
                     chatHistory.push({ role: "model", text: `[Memori Diperbarui: ${fact}]` });
                 }
             } else if (commandName === 'schedule_task') {
-                const { type, delay_seconds, content } = call.args;
-                const executeAt = Date.now() + (delay_seconds * 1000);
+                console.log('DEBUG Scheduler Args:', call.args); // DEBUGGING
+
+                // Flexible parsing in case AI hallucinates param names
+                const type = call.args.type || call.args.task_type || 'reminder';
+                const content = call.args.content || call.args.text || call.args.prompt || "Pengingat";
+                let delay = call.args.delay_seconds || call.args.delay || call.args.seconds || 10;
+
+                // Ensure delay is number
+                if (typeof delay === 'string') delay = parseInt(delay);
+                if (isNaN(delay)) delay = 10;
+
+                const executeAt = Date.now() + (delay * 1000);
 
                 bot.scheduler.addTask({
                     id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -118,6 +128,10 @@ async function handleFunctionCalls(bot, message, chat, chatId, chatHistory, func
                 });
 
                 chatHistory.push({ role: "model", text: `[Tugas Dijadwalkan: ${type} dalam ${delay_seconds} detik]` });
+
+                // Confirmation message
+                const actionText = type === 'image_generation' ? 'buat gambar' : 'ingetin kamu';
+                await message.reply(`Oke siap! ${delay_seconds} detik lagi aku ${actionText} ya! 👌⏰`);
 
             } else if (commandName) {
                 const command = bot.commands.get(commandName);
