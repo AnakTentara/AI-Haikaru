@@ -68,6 +68,12 @@ class WhatsAppBot {
             }
         }
 
+        if (this.geminiClients.length === 0) {
+            console.error("❌ CRITICAL: No GEMINI_API_KEY found in .env! AI features will be disabled.");
+        } else {
+            console.log(`✅ Loaded ${this.geminiClients.length} Gemini API Clients.`);
+        }
+
         // OpenAI - Context/Helper/Reaction/Grounding (OPENAI_API_KEY)
         if (process.env.OPENAI_API_KEY) {
             this.openaiClient = new OpenAI({
@@ -77,7 +83,7 @@ class WhatsAppBot {
             console.log("✅ OpenAI Client (Context/Helper/Reaction/Grounding)");
         }
 
-    }
+    } // End of constructor
 
     async loadCommands() {
         const commandsPath = join(__dirname, "commands");
