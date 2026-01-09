@@ -22,6 +22,7 @@ import OpenAI from 'openai';
 import modelManager from './handlers/modelManager.js';
 
 import AutonomousHandler from './handlers/autonomousHandler.js';
+import SchedulerHandler from './handlers/schedulerHandler.js';
 
 class WhatsAppBot {
     constructor() {
@@ -42,6 +43,9 @@ class WhatsAppBot {
 
         // New Autonomous Handler
         this.autonomous = new AutonomousHandler(this);
+
+        // New Scheduler Handler
+        this.scheduler = new SchedulerHandler(this);
 
         // AI Configuration from config.json
         const geminiBaseURL = config.ai?.gemini?.baseURL || "https://generativelanguage.googleapis.com/v1beta/openai/";
@@ -208,6 +212,7 @@ class WhatsAppBot {
         console.log("📱 Memulai klien WhatsApp...\n");
 
         this.client.initialize();
+        this.scheduler.start();
     }
 }
 
