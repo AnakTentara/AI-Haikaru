@@ -68,9 +68,10 @@ class ModelManager {
             ];
         } else if (taskType === 'short' || taskType === 'emoji') {
             chain = [
-                'gemini-2.5-flash-lite',
-                'gemma-3-4b',
-                'gemma-3-27b' // Upgrade fallback to 27b
+                'gemma-3-4b', // Primary for reactions (Fast & Efficient)
+                'gemma-3-12b',
+                'gemma-3-27b',
+                'gemini-2.5-flash-lite'
             ];
         } else if (taskType === 'audio') {
             chain = [
