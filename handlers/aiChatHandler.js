@@ -1,6 +1,6 @@
 import { loadChatHistory, saveChatHistory, loadMemory, saveMemory } from "./dbHandler.js";
 import { getGeminiChatResponse } from "./geminiProcessor.js";
-import emoji from 'node-emoji';
+import * as emoji from 'node-emoji';
 import Logger from "./logger.js";
 
 /**
