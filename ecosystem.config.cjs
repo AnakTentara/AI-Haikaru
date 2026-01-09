@@ -30,10 +30,7 @@ module.exports = {
                 "config/berita",
                 "data",
                 "frontend",
-                ".git",
-                ".wwebjs_auth",
-                ".wwebjs_cache",
-                "logs"
+                ".git"
             ]
         }
     ]

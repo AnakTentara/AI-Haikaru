@@ -42,10 +42,9 @@ class WhatsAppBot {
         const geminiBaseURL = config.ai?.gemini?.baseURL || "https://generativelanguage.googleapis.com/v1beta/openai/";
         const openaiBaseURL = config.ai?.openai?.baseURL || "https://api.openai.com/v1";
 
-        // Main AI - Build fallback chain from all available Gemini keys (up to 10)
+        // Main AI - Build fallback chain from all available Gemini keys
         this.geminiClients = [];
 
-        // Primary key
         if (process.env.GEMINI_API_KEY) {
             this.geminiClients.push({
                 client: new OpenAI({ apiKey: process.env.GEMINI_API_KEY, baseURL: geminiBaseURL }),
@@ -54,18 +53,28 @@ class WhatsAppBot {
             console.log("✅ Main AI Primary (GEMINI_API_KEY)");
         }
 
-        // Secondary keys (2 to 10)
-        for (let i = 2; i <= 10; i++) {
-            const keyName = `GEMINI_API_KEY_${i}`;
-            const keyValue = process.env[keyName];
+        if (process.env.GEMINI_API_KEY_2) {
+            this.geminiClients.push({
+                client: new OpenAI({ apiKey: process.env.GEMINI_API_KEY_2, baseURL: geminiBaseURL }),
+                name: "Secondary"
+            });
+            console.log("✅ Main AI Secondary (GEMINI_API_KEY_2)");
+        }
 
-            if (keyValue) {
-                this.geminiClients.push({
-                    client: new OpenAI({ apiKey: keyValue, baseURL: geminiBaseURL }),
-                    name: `Key_${i}`
-                });
-                console.log(`✅ Main AI Key ${i} (${keyName})`);
-            }
+        if (process.env.GEMINI_API_KEY_3) {
+            this.geminiClients.push({
+                client: new OpenAI({ apiKey: process.env.GEMINI_API_KEY_3, baseURL: geminiBaseURL }),
+                name: "Tertiary"
+            });
+            console.log("✅ Main AI Tertiary (GEMINI_API_KEY_3)");
+        }
+
+        if (process.env.GEMINI_API_KEY_4) {
+            this.geminiClients.push({
+                client: new OpenAI({ apiKey: process.env.GEMINI_API_KEY_4, baseURL: geminiBaseURL }),
+                name: "Quaternary"
+            });
+            console.log("✅ Main AI Quaternary (GEMINI_API_KEY_4)");
         }
 
         // OpenAI - Context/Helper/Reaction/Grounding (OPENAI_API_KEY)

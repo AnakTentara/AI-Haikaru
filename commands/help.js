@@ -59,7 +59,7 @@ export default {
     const data = await show_help_menu(bot);
 
     const geminiPrompt = "Seseorang telah menjalankan perintah help. Berikan HANYA SATU kalimat singkat, ceria, dan sedikit sok tahu sebagai sapaan pembuka sebelum menyajikan daftar perintah.";
-    const aiSalutation = await getGeminiResponse(bot, geminiPrompt);
+    const aiSalutation = await getGeminiResponse(bot, geminiPrompt, chatHistory);
 
     const helpMessage = formatHelpMessage(data, aiSalutation);
 

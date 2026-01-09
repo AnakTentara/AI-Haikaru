@@ -1,90 +1,163 @@
-import { MongoClient } from 'mongodb';
+import fs from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import Logger from './logger.js';
 
-const uri = process.env.MONGODB_URI;
-if (!uri) {
-	console.error("❌ MONGODB_URI tidak ditemukan! Harap set environment variable.");
-}
-const client = new MongoClient(uri);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-const DB_NAME = process.env.DB_NAME || "ai_bot_database";
-const COLLECTION_NAME = "chatHistory";
+// Constants
+const HISTORY_DIR = join(__dirname, '../data/history');
+const MEMORY_DIR = join(__dirname, '../data/memory');
+const CACHE_LIMIT = 100; // Max number of chats to keep in RAM
 
-let dbConnection = null;
+// In-Memory Cache (chatId -> { history: [], memory: "" })
+const cache = new Map();
 
-async function connectToDB() {
-	if (dbConnection) return dbConnection;
-
-	try {
-		await client.connect();
-		dbConnection = client.db(DB_NAME);
-		console.log("✅ Berhasil terhubung ke MongoDB!");
-		return dbConnection;
-	} catch (error) {
-		console.error("❌ Gagal terhubung ke MongoDB:", error);
-		throw error;
+// Ensure directories exist
+[HISTORY_DIR, MEMORY_DIR].forEach(dir => {
+	if (!fs.existsSync(dir)) {
+		fs.mkdirSync(dir, { recursive: true });
 	}
-}
+});
 
+/**
+ * Load chat history
+ * Priority: Cache -> JSON File -> Empty Array
+ */
 export async function loadChatHistory(chatId, limit = 30) {
-	const db = await connectToDB();
-	const collection = db.collection(COLLECTION_NAME);
-
-	try {
-		// Gunakan projection $slice untuk mengambil hanya N pesan terakhir
-		// Syntax: { history: { $slice: -limit } } -> ambil limit terakhir dari array
-		const document = await collection.findOne(
-			{ _id: chatId },
-			{ projection: { history: { $slice: -limit } } }
-		);
-		return document ? document.history : [];
-	} catch (error) {
-		console.error(`Gagal memuat riwayat chat ${chatId}:`, error);
-		return [];
+	// 1. Check Cache
+	if (cache.has(chatId)) {
+		const data = cache.get(chatId);
+		return data.history.slice(-limit);
 	}
+
+	// 2. Load from File
+	const filePath = join(HISTORY_DIR, `${chatId.replace(/[^a-zA-Z0-9]/g, '_')}.json`);
+	try {
+		if (fs.existsSync(filePath)) {
+			const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+			const history = data.history || [];
+
+			// Add to cache (Init with empty memory if not loaded yet)
+			if (!cache.has(chatId)) {
+				cache.set(chatId, { history, memory: "" });
+			} else {
+				cache.get(chatId).history = history;
+			}
+
+			// Manage cache size
+			if (cache.size > CACHE_LIMIT) {
+				const firstKey = cache.keys().next().value;
+				cache.delete(firstKey);
+			}
+
+			return history.slice(-limit);
+		}
+	} catch (error) {
+		Logger.error('DB_HANDLER', `Failed to load history file for ${chatId}`, { error: error.message });
+	}
+
+	return [];
 }
 
+/**
+ * Save chat history (Full overwrite)
+ */
 export async function saveChatHistory(chatId, history) {
-	const db = await connectToDB();
-	const collection = db.collection(COLLECTION_NAME);
-
-	if (history.length > 99999) {
-		history = history.slice(history.length - 99999);
+	// 1. Update Cache
+	if (cache.has(chatId)) {
+		cache.get(chatId).history = history;
+	} else {
+		cache.set(chatId, { history, memory: "" });
 	}
 
-	try {
-		await collection.updateOne(
-			{ _id: chatId },
-			{ $set: { history: history, lastUpdated: new Date() } },
-			{ upsert: true }
-		);
+	// 2. Save to File (Async)
+	const filePath = join(HISTORY_DIR, `${chatId.replace(/[^a-zA-Z0-9]/g, '_')}.json`);
 
-	} catch (error) {
-		console.error(`Gagal menyimpan riwayat chat ${chatId}:`, error);
-	}
+	// We use a promise wrapper but don't 'await' it if we want it to be background
+	// However, usually it's safer to ensure it's written.
+	setImmediate(() => {
+		try {
+			const data = {
+				chatId: chatId,
+				history: history,
+				lastUpdated: new Date().toISOString()
+			};
+			fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+			Logger.db('SAVE_HISTORY', `Successfully saved history to JSON: ${chatId}`);
+		} catch (error) {
+			Logger.error('DB_HANDLER', `Failed to save history file for ${chatId}`, { error: error.message });
+		}
+	});
 }
 
+/**
+ * Append a single message to history
+ */
 export async function appendChatMessage(chatId, message) {
-	const db = await connectToDB();
-	const collection = db.collection(COLLECTION_NAME);
-
-	try {
-		// Gunakan $push untuk menambahkan pesan baru ke array history
-		// Gunakan $slice untuk membatasi ukuran array (misal simpan 99999 pesan terakhir untuk konteks)
-		// $slice: -99999 berarti simpan 99999 elemen TERAKHIR
-		await collection.updateOne(
-			{ _id: chatId },
-			{
-				$push: {
-					history: {
-						$each: [message],
-						$slice: -99999
-					}
-				},
-				$set: { lastUpdated: new Date() }
-			},
-			{ upsert: true }
-		);
-	} catch (error) {
-		console.error(`Gagal menambahkan pesan ke riwayat chat ${chatId}:`, error);
+	// 1. Ensure history is loaded in cache
+	let data = { history: [], memory: "" };
+	if (cache.has(chatId)) {
+		data = cache.get(chatId);
+	} else {
+		const history = await loadChatHistory(chatId, 99999);
+		const memory = await loadMemory(chatId);
+		data = { history, memory };
 	}
+
+	// 2. Append and Limit
+	data.history.push(message);
+	if (data.history.length > 99999) {
+		data.history = data.history.slice(-99999);
+	}
+
+	// 3. Save
+	await saveChatHistory(chatId, data.history);
+}
+
+/**
+ * Load Permanent Memory
+ */
+export async function loadMemory(chatId) {
+	// 1. Check Cache
+	if (cache.has(chatId)) {
+		return cache.get(chatId).memory || "";
+	}
+
+	// 2. Load from File
+	const filePath = join(MEMORY_DIR, `${chatId.replace(/[^a-zA-Z0-9]/g, '_')}.json`);
+	try {
+		if (fs.existsSync(filePath)) {
+			const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+			return data.memory || "";
+		}
+	} catch (e) {
+		Logger.error('DB_HANDLER', `Failed to load memory file for ${chatId}`, { error: e.message });
+	}
+
+	return "";
+}
+
+/**
+ * Save Permanent Memory
+ */
+export async function saveMemory(chatId, memory) {
+	// 1. Update Cache
+	if (cache.has(chatId)) {
+		cache.get(chatId).memory = memory;
+	} else {
+		cache.set(chatId, { history: [], memory: memory });
+	}
+
+	// 2. Save to File
+	const filePath = join(MEMORY_DIR, `${chatId.replace(/[^a-zA-Z0-9]/g, '_')}.json`);
+	setImmediate(() => {
+		try {
+			fs.writeFileSync(filePath, JSON.stringify({ chatId, memory, lastUpdated: new Date().toISOString() }, null, 2));
+			Logger.db('SAVE_MEMORY', `Permanent memory updated: ${chatId}`);
+		} catch (e) {
+			Logger.error('DB_HANDLER', `Failed to save memory file for ${chatId}`, { error: e.message });
+		}
+	});
 }

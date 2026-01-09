@@ -28,9 +28,8 @@ export default {
         count: result.participantCount,
         group: result.groupName
       });
-      const geminiPrompt = `seseorang telah menjalankan perintah tag everyone, yang artinya kamu akan membalas pesan tersebut dengan balasan + tag semua orang yang ada di dalam grup. buatlah 1 kalimat nya untuk orang yang menjalankan perintah tersebut.
-`;
-      const aiResponseText = await getGeminiResponse(bot, geminiPrompt);
+      const geminiPrompt = `seseorang telah menjalankan perintah tag everyone, yang artinya kamu akan membalas pesan tersebut dengan balasan + tag semua orang yang ada di dalam grup. buatlah 1 kalimat nya untuk orang yang menjalankan perintah tersebut.`;
+      const aiResponseText = await getGeminiResponse(bot, geminiPrompt, chatHistory);
       const teks = formatEveryoneMessage(result, aiResponseText);
 
       await bot.client.sendMessage(chat.id._serialized, teks, {

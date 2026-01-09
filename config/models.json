@@ -1,0 +1,151 @@
+{
+    "models": [
+        {
+            "id": "gemini-2.5-flash-lite",
+            "displayName": "Gemini 2.5 Flash Lite",
+            "tier": "mid",
+            "rpm": 10,
+            "tpm": 250000,
+            "rpd": 20,
+            "tags": [
+                "chat",
+                "general"
+            ]
+        },
+        {
+            "id": "gemini-2.5-flash-tts",
+            "displayName": "Gemini 2.5 Flash TTS",
+            "tier": "special",
+            "rpm": 3,
+            "tpm": 10000,
+            "rpd": 10,
+            "tags": [
+                "audio",
+                "multimodal"
+            ]
+        },
+        {
+            "id": "gemini-2.5-flash",
+            "displayName": "Gemini 2.5 Flash",
+            "tier": "high",
+            "rpm": 5,
+            "tpm": 250000,
+            "rpd": 20,
+            "tags": [
+                "coding",
+                "complex",
+                "vision"
+            ]
+        },
+        {
+            "id": "gemini-3-flash",
+            "displayName": "Gemini 3 Flash",
+            "tier": "high",
+            "rpm": 5,
+            "tpm": 250000,
+            "rpd": 20,
+            "tags": [
+                "coding",
+                "complex",
+                "latest"
+            ]
+        },
+        {
+            "id": "gemini-robotics-er-1.5-preview",
+            "displayName": "Gemini Robotics 1.5 Preview",
+            "tier": "special",
+            "rpm": 10,
+            "tpm": 250000,
+            "rpd": 20,
+            "tags": [
+                "specialized"
+            ]
+        },
+        {
+            "id": "gemma-3-27b",
+            "displayName": "Gemma 3 27B",
+            "tier": "mid",
+            "rpm": 30,
+            "tpm": 15000,
+            "rpd": 14400,
+            "tags": [
+                "chat",
+                "fallback"
+            ]
+        },
+        {
+            "id": "gemma-3-12b",
+            "displayName": "Gemma 3 12B",
+            "tier": "mid",
+            "rpm": 30,
+            "tpm": 15000,
+            "rpd": 14400,
+            "tags": [
+                "chat",
+                "fallback"
+            ]
+        },
+        {
+            "id": "gemma-3-4b",
+            "displayName": "Gemma 3 4B",
+            "tier": "low",
+            "rpm": 30,
+            "tpm": 15000,
+            "rpd": 14400,
+            "tags": [
+                "simple",
+                "emoji",
+                "short"
+            ]
+        },
+        {
+            "id": "gemma-3-2b",
+            "displayName": "Gemma 3 2B",
+            "tier": "low",
+            "rpm": 30,
+            "tpm": 15000,
+            "rpd": 14400,
+            "tags": [
+                "simple",
+                "emoji",
+                "short"
+            ]
+        },
+        {
+            "id": "gemma-3-1b",
+            "displayName": "Gemma 3 1B",
+            "tier": "low",
+            "rpm": 30,
+            "tpm": 15000,
+            "rpd": 14400,
+            "tags": [
+                "simple",
+                "emoji",
+                "short"
+            ]
+        },
+        {
+            "id": "gemini-embedding-1.0",
+            "displayName": "Gemini Embedding 1.0",
+            "tier": "special",
+            "rpm": 100,
+            "tpm": 30000,
+            "rpd": 1000,
+            "tags": [
+                "embedding"
+            ]
+        },
+        {
+            "id": "gemini-2.5-flash-native-audio-dialog",
+            "displayName": "Gemini 2.5 Flash Native Audio",
+            "tier": "special",
+            "rpm": 99999,
+            "tpm": 1000000,
+            "rpd": 99999,
+            "tags": [
+                "live",
+                "audio"
+            ]
+        }
+    ]
+}

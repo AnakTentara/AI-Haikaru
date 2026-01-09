@@ -1,5 +1,5 @@
-import { getGeminiChatResponse, analyzeEmojiReaction, analyzeContextIntent } from "../handlers/geminiProcessor.js";
-import { loadChatHistory, saveChatHistory, appendChatMessage } from "../handlers/dbHandler.js";
+import { getGeminiChatResponse, analyzeEmojiReaction, analyzeAudio } from "../handlers/geminiProcessor.js";
+import { loadChatHistory, saveChatHistory, appendChatMessage, loadMemory, saveMemory } from "../handlers/dbHandler.js";
 import Logger from "../handlers/logger.js";
 import pkg from "whatsapp-web.js";
 const { MessageMedia } = pkg;
@@ -22,7 +22,8 @@ async function handleFunctionCalls(bot, message, chat, chatHistory, chatId, func
     'tag_everyone': 'everyone',
     'generate_image': 'img',
     'create_text_sticker': 'sticker',
-    'create_image_sticker': 'sticker'
+    'create_image_sticker': 'sticker',
+    'update_memory': 'update_memory'
   };
 
   for (const call of functionCalls) {
@@ -30,7 +31,16 @@ async function handleFunctionCalls(bot, message, chat, chatHistory, chatId, func
       Logger.function('AI_FUNCTION', `Executing: ${call.name}`, { args: call.args });
       const commandName = functionToCommandMap[call.name];
 
-      if (commandName) {
+      if (commandName === 'update_memory') {
+        const fact = call.args.fact;
+        if (fact) {
+          const currentMemory = await loadMemory(chatId);
+          const newMemory = currentMemory ? `${currentMemory}\n- ${fact}` : `- ${fact}`;
+          await saveMemory(chatId, newMemory);
+          chatHistory.push({ role: "model", text: `[Memori Diperbarui: ${fact}]` });
+          Logger.success('AI_MEMORY', `Updated memory for ${chatId}: ${fact}`);
+        }
+      } else if (commandName) {
         // Direct command execution
         const command = bot.commands.get(commandName);
         if (command) {
@@ -55,7 +65,7 @@ async function handleFunctionCalls(bot, message, chat, chatHistory, chatId, func
   }
 
   await saveChatHistory(chatId, chatHistory);
-};
+}
 
 export default {
   name: "message",
@@ -184,8 +194,20 @@ export default {
               newMessage.text += `\n\n[SYSTEM: User melampirkan dokumen. Berikut isinya:]\n---\n${truncatedText}\n---\n[Instruksi: Jawab pertanyaan user berdasarkan isi dokumen di atas]`;
 
               Logger.success('DOCUMENT', 'Text extracted and added to context', { length: truncatedText.length });
+            }
+          }
+          // C. LOGIC AUDIO (BARU ✨)
+          else if (media.mimetype.startsWith("audio/")) {
+            await message.reply("Bentar, gue dengerin dulu ya... 🎧");
+
+            const audioData = media.data; // Base64
+            const soundscapeAnalysis = await analyzeAudio(bot, audioData, media.mimetype);
+
+            if (soundscapeAnalysis) {
+              newMessage.text += `\n\n[SYSTEM: User mengirim pesan suara. Berikut analisis audio mendalam:]\n---\n${soundscapeAnalysis}\n---\n[Instruksi: Respon pesan suara ini sesuai dengan isi transkrip dan suasana yang dijelaskan di atas]`;
+              Logger.success('AUDIO', 'Audio analyzed and added to context');
             } else {
-              await message.reply("Waduh, aku gagal baca isinya. Mungkin file rusak atau terenkripsi password.");
+              await message.reply("Aduh, telinga gue lagi pengang. Gagal dengerin VN-nya.");
             }
           }
         }
@@ -262,19 +284,10 @@ export default {
     // 4. Logic Respons Teks (AI Chat)
     if (shouldRespond) {
       try {
-        let typingTimeIndicator = 700;
+        const historyLimit = 50; // Balanced limit for context and speed
 
-        // Smart Context Logic (AI Intent Analysis)
-        Logger.ai('SMART_CONTEXT', 'Analyzing context intent...');
-        const requiresMemory = await analyzeContextIntent(bot, body);
-
-        const historyLimit = requiresMemory ? 9999 : 30; // 30 (Fast) vs 9999 (Deep)
-
-        if (requiresMemory) {
-          Logger.info('SMART_CONTEXT', `Deep memory required! Loading ${historyLimit} messages.`);
-        } else {
-          Logger.info('SMART_CONTEXT', `Standard context sufficient. Loading ${historyLimit} messages.`);
-        }
+        Logger.db('LOAD_MEMORY', `Loading permanent memory for ${chatId}`);
+        const permanentMemory = await loadMemory(chatId);
 
         Logger.db('LOAD_HISTORY', `Loading chat history for ${chatId} (Limit: ${historyLimit})`);
         const chatHistory = await loadChatHistory(chatId, historyLimit);
@@ -282,7 +295,7 @@ export default {
         const thinkingStart = Date.now();
 
         Logger.ai('AI_CHAT', 'Calling Gemini API...');
-        const aiResponse = await getGeminiChatResponse(bot, chatHistory, "gemini-2.5-flash");
+        const aiResponse = await getGeminiChatResponse(bot, chatHistory, permanentMemory);
 
         if (aiResponse.type === 'function_call') {
           Logger.ai('AI_CHAT', 'AI requested function calls', { count: aiResponse.functionCalls.length });
@@ -299,6 +312,7 @@ export default {
         const chatObj = await message.getChat();
         chatObj.sendStateTyping();
 
+        const typingTimeIndicator = 1000;
         await new Promise(resolve => setTimeout(resolve, typingTimeIndicator));
 
         chatObj.clearState();
