@@ -27,8 +27,17 @@ export async function orchestrateAIResponse(bot, message, chat, chatId, newMessa
         }
 
         // 4. Clean & Send Response
-        const aggressivePrefixRegex = /^(\[.*?\]\s*(\[.*?\]:\s*)?)+/i;
+        // 4. Clean & Send Response
+        // Remove Identity Tags, Timestamps, and accidental JSON dumps
+        const aggressivePrefixRegex = /^(\[.*?\]\s*)+:?\s*/i;
         let cleanedResponse = aiResponse.replace(aggressivePrefixRegex, "").trim();
+
+        // Anti-Hallucination: If response implies it's sending JSON/History
+        if (cleanedResponse.startsWith('{"') || cleanedResponse.includes('"role": "model"')) {
+            Logger.warn('AI_CHIEF', 'AI attempted to leak JSON history. Suppressed.');
+            cleanedResponse = "Waduh, aku agak error dikit nih. Coba tanya lagi ya? 😅";
+        }
+
         if (!cleanedResponse) cleanedResponse = aiResponse.trim();
 
         // Convert text emojis (:smile:) to Unicode (😄)
