@@ -28,8 +28,19 @@ export default {
         count: result.participantCount,
         group: result.groupName
       });
-      const geminiPrompt = `seseorang telah menjalankan perintah tag everyone, yang artinya kamu akan membalas pesan tersebut dengan balasan + tag semua orang yang ada di dalam grup. buatlah 1 kalimat nya untuk orang yang menjalankan perintah tersebut.`;
-      const aiResponseText = await getGeminiResponse(bot, geminiPrompt, chatHistory);
+      // Custom message from AI Tool Call (args[0])
+      const customMessage = args && args[0] ? args[0] : null;
+
+      let aiResponseText = "";
+      if (customMessage) {
+        // Direct message from AI
+        aiResponseText = `📢 ${customMessage}`;
+      } else {
+        // Fallback: Generate generic hype message
+        const geminiPrompt = `seseorang telah menjalankan perintah tag everyone, yang artinya kamu akan membalas pesan tersebut dengan balasan + tag semua orang yang ada di dalam grup. buatlah 1 kalimat nya untuk orang yang menjalankan perintah tersebut.`;
+        aiResponseText = await getGeminiResponse(bot, geminiPrompt, chatHistory);
+      }
+
       const teks = formatEveryoneMessage(result, aiResponseText);
 
       await bot.client.sendMessage(chat.id._serialized, teks, {

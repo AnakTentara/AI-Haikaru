@@ -99,8 +99,14 @@ export async function getGeminiChatResponse(
 			type: "function",
 			function: {
 				name: "tag_everyone",
-				description: "Tag/mention semua member di grup. HANYA gunakan jika user SECARA EKSPLISIT meminta untuk 'tag semua', 'mention all', atau sejenisnya. JANGAN gunakan untuk sapaan biasa.",
-				parameters: { type: "object", properties: {}, required: [] }
+				description: "Tag/mention semua member di grup. HANYA gunakan jika user SECARA EKSPLISIT meminta untuk 'tag semua', 'mention all', atau sejenisnya. JANGAN gunakan untuk sapaan biasa. Kamu bisa menyertakan pesan tambahan dalam tag ini.",
+				parameters: {
+					type: "object",
+					properties: {
+						text: { type: "string", description: "Pesan yang ingin disampaikan bersamaan dengan tag (opsional)" }
+					},
+					required: []
+				}
 			}
 		},
 		{
@@ -366,8 +372,8 @@ export async function analyzeAudio(bot, audioData, mimeType) {
 	for (const modelId of modelChain) {
 		console.log(`📡 Analyzing Audio with model: ${modelId} `);
 
-		// 3. Loop through API Keys (1 to 10)
-		for (let i = 1; i <= 10; i++) {
+		// 3. Loop through API Keys (1 to 25)
+		for (let i = 1; i <= 25; i++) {
 			const keyName = i === 1 ? 'GEMINI_API_KEY' : `GEMINI_API_KEY_${i} `;
 			const apiKey = process.env[keyName];
 

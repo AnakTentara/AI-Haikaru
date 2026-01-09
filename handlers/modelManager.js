@@ -76,8 +76,8 @@ class ModelManager {
             ];
         } else { // default 'chat'
             chain = [
-                'gemini-2.5-flash-lite',
-                'gemini-2.5-flash'
+                'gemini-2.5-flash',      // Primary (User Request: Utamakan Flash)
+                'gemini-2.5-flash-lite'  // Fallback
             ];
         }
 

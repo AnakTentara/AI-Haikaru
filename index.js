@@ -59,8 +59,8 @@ class WhatsAppBot {
             console.log("✅ Main AI Primary (GEMINI_API_KEY)");
         }
 
-        // Secondary keys (2 to 10)
-        for (let i = 2; i <= 10; i++) {
+        // Secondary keys (2 to 25)
+        for (let i = 2; i <= 25; i++) {
             const keyName = `GEMINI_API_KEY_${i}`;
             const keyValue = process.env[keyName];
 
