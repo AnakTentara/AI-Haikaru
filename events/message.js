@@ -84,10 +84,10 @@ export default {
     }
 
     // 6. Start Autonomous Monitoring (if Group)
-    const chat = await message.getChat();
-    const isPrivate = !chat.isGroup;
+    const chatObj = await message.getChat();
+    const isPrivateChat = !chatObj.isGroup;
 
-    if (!isPrivate && bot.autonomous) {
+    if (!isPrivateChat && bot.autonomous) {
       bot.autonomous.startMonitoring(chatId);
     }
   },
