@@ -1,5 +1,6 @@
 import { loadChatHistory, saveChatHistory, loadMemory, saveMemory } from "./dbHandler.js";
 import { getGeminiChatResponse } from "./geminiProcessor.js";
+import emoji from 'node-emoji';
 import Logger from "./logger.js";
 
 /**
@@ -29,6 +30,18 @@ export async function orchestrateAIResponse(bot, message, chat, chatId, newMessa
         const aggressivePrefixRegex = /^(\[.*?\]\s*(\[.*?\]:\s*)?)+/i;
         let cleanedResponse = aiResponse.replace(aggressivePrefixRegex, "").trim();
         if (!cleanedResponse) cleanedResponse = aiResponse.trim();
+
+        // Convert text emojis (:smile:) to Unicode (😄)
+        // Helper function for safe emoji conversion
+        const emojify = (str) => {
+            try {
+                // Dynamic import to avoid issues if dependency is missing during dev
+                return emoji.emojify(str);
+            } catch (e) {
+                return str;
+            }
+        };
+        cleanedResponse = emojify(cleanedResponse);
 
         const chatObj = await message.getChat();
         chatObj.sendStateTyping();
