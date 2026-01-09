@@ -233,10 +233,8 @@ export async function getGroundedResponse(bot, query) {
  * Menggunakan mode JSON untuk output terstruktur.
  */
 export async function analyzeEmojiReaction(bot, chatHistory) {
-	// Use OpenAI client for Reaction AI
-	const openaiClient = bot.openaiClient || bot.openai;
-	if (!openaiClient) return null;
-
+	// 1. Get Emoji Model Chain (Gemma prioritized)
+	const modelChain = modelManager.getFallbackChain('emoji');
 
 	// Ambil 20 pesan terakhir untuk konteks reaksi
 	const recentHistory = chatHistory.slice(-20);
@@ -248,51 +246,51 @@ Tugasmu:
 2. Fokus pada pesan TERAKHIR dari user.
 3. Tentukan emoji yang paling cocok untuk mereaksikan pesan tersebut.
 4. Tentukan tingkat urgensi reaksi:
-   - "wajib": Sangat emosional (sedih, marah, kaget, sangat lucu) atau perubahan topik drastis.
-   - "penting": Relevan dan menambah nilai percakapan.
-   - "opsional": Reaksi standar, tidak terlalu mendesak.
-   - "jangan_bereaksi": Topik sensitif, duka cita serius, atau tidak perlu reaksi.
+   - "wajib": Jika sangat lucu/sedih/penting (Contoh: "Hahahaha", "Turut berduka").
+   - "penting": Jika butuh apresiasi (Contoh: "Keren bang", "Done").
+   - "opsional": Jika obrolan santai biasa.
+   - "tidak_perlu": Jika pesannya sangat singkat/tidak jelas/hanya sapaan.
 
-Output WAJIB JSON format:
+Output WAJIB JSON:
 {
-  "emoji": "string (1 emoji saja)",
-  "urgensi": "wajib" | "penting" | "opsional" | "jangan_bereaksi"
+  "emoji": "👍", 
+  "urgensi": "opsional",
+  "alasan": "User setuju dengan pendapat sebelumnya"
 }
 `;
 
 	const messages = [
-		{ role: "system", content: systemInstruction }
+		{ role: "system", content: systemInstruction },
+		...recentHistory.map(m => ({
+			role: m.role === "model" ? "assistant" : "user",
+			content: m.text
+		}))
 	];
 
-	for (const msg of recentHistory) {
-		const role = msg.role === "model" ? "assistant" : "user";
-		messages.push({ role, content: msg.text });
-	}
+	// 2. Loop Models & Keys
+	for (const modelId of modelChain) {
+		const clients = bot.geminiClients || [];
+		for (const { client, name: keyName } of clients) {
+			try {
+				const completion = await client.chat.completions.create({
+					model: modelId,
+					messages: messages,
+					temperature: 0.5,
+					response_format: { type: "json_object" }
+				});
 
-	try {
-		// Use model from OpenAI config or default
-		const reactionModel = bot.config.ai?.openai?.models?.reaction || "gpt-4o-mini";
-		const completion = await openaiClient.chat.completions.create({
-			model: reactionModel,
-			messages: messages,
-			temperature: 1.0,
-			response_format: { type: "json_object" }
-		});
+				modelManager.updateUsage(modelId, completion.usage?.total_tokens || 0);
+				const content = completion.choices[0].message.content;
+				return JSON.parse(content);
 
-		const responseText = completion.choices[0].message.content;
-		if (!responseText) return null;
-
-		const result = JSON.parse(responseText);
-		return result;
-	} catch (error) {
-		// Graceful handling for rate limit - skip reaction silently
-		if (error.status === 429) {
-			console.warn("⚠️ Emoji reaction skipped: Rate limit exceeded (429)");
-			return null;
+			} catch (error) {
+				// Ignore errors, try next key/model
+				continue;
+			}
 		}
-		console.error("❌ Gagal menganalisis reaksi emoji (OpenAI SDK):", error.message || error);
-		return null;
 	}
+
+	return null;
 }
 
 export async function getGeminiResponse(
@@ -332,7 +330,7 @@ export async function getGeminiResponse(
 			modelManager.updateUsage(modelId, completion.usage?.total_tokens || 0);
 			return response;
 		} catch (error) {
-			console.warn(`⚠️ [${keyName}] Helper AI (Gemini) failed: ${error.message}`);
+			console.warn(`⚠️[${keyName}] Helper AI (Gemini) failed: ${error.message} `);
 			continue;
 		}
 	}
@@ -366,11 +364,11 @@ export async function analyzeAudio(bot, audioData, mimeType) {
 
 	// 2. Loop through Models
 	for (const modelId of modelChain) {
-		console.log(`📡 Analyzing Audio with model: ${modelId}`);
+		console.log(`📡 Analyzing Audio with model: ${modelId} `);
 
 		// 3. Loop through API Keys (1 to 10)
 		for (let i = 1; i <= 10; i++) {
-			const keyName = i === 1 ? 'GEMINI_API_KEY' : `GEMINI_API_KEY_${i}`;
+			const keyName = i === 1 ? 'GEMINI_API_KEY' : `GEMINI_API_KEY_${i} `;
 			const apiKey = process.env[keyName];
 
 			if (!apiKey) continue;
