@@ -127,11 +127,11 @@ async function handleFunctionCalls(bot, message, chat, chatId, chatHistory, func
                     createdAt: Date.now()
                 });
 
-                chatHistory.push({ role: "model", text: `[Tugas Dijadwalkan: ${type} dalam ${delay_seconds} detik]` });
+                chatHistory.push({ role: "model", text: `[Tugas Dijadwalkan: ${type} dalam ${delay} detik]` });
 
                 // Confirmation message
                 const actionText = type === 'image_generation' ? 'buat gambar' : 'ingetin kamu';
-                await message.reply(`Oke siap! ${delay_seconds} detik lagi aku ${actionText} ya! 👌⏰`);
+                await message.reply(`Oke siap! ${delay} detik lagi aku ${actionText} ya! 👌⏰`);
 
             } else if (commandName) {
                 const command = bot.commands.get(commandName);
