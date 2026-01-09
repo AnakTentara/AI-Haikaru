@@ -44,20 +44,6 @@
             ]
         },
         {
-            "id": "gemini-3-flash",
-            "displayName": "Gemini 3 Flash",
-            "description": "Next-gen Flash model. Highest capability for reasoning and coding.",
-            "tier": "high",
-            "rpm": 5,
-            "tpm": 250000,
-            "rpd": 20,
-            "tags": [
-                "coding",
-                "complex",
-                "reasoning"
-            ]
-        },
-        {
             "id": "gemini-robotics-er-1.5-preview",
             "displayName": "Gemini Robotics 1.5 Preview",
             "description": "Specialized model for robotics and spatial reasoning.",

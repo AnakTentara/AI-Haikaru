@@ -62,7 +62,6 @@ class ModelManager {
 
         if (taskType === 'coding' || taskType === 'complex') {
             chain = [
-                'gemini-3-flash',
                 'gemini-2.5-flash',
                 'gemini-2.5-flash-lite',
                 'gemma-3-27b'
@@ -75,13 +74,12 @@ class ModelManager {
             ];
         } else if (taskType === 'audio') {
             chain = [
-                'gemini-2.5-flash-lite', // Available in config
-                'gemini-2.5-flash' // Available in config
+                'gemini-2.5-flash', // Primary: Better listening capability
+                'gemini-2.5-flash-lite' // Fallback
             ];
         } else { // default 'chat'
             chain = [
                 'gemini-2.5-flash-lite',
-                'gemini-3-flash',
                 'gemma-3-27b',
                 'gemma-3-12b'
             ];
