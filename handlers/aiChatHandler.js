@@ -75,6 +75,9 @@ export async function orchestrateAIResponse(bot, message, chat, chatId, newMessa
 /**
  * Handle function calls from AI
  */
+/**
+ * Handle function calls from AI
+ */
 async function handleFunctionCalls(bot, message, chat, chatId, chatHistory, functionCalls) {
     const functionToCommandMap = {
         'get_bot_info': 'info',
@@ -82,8 +85,6 @@ async function handleFunctionCalls(bot, message, chat, chatId, chatHistory, func
         'show_help_menu': 'help',
         'tag_everyone': 'everyone',
         'generate_image': 'img',
-        'create_text_sticker': 'sticker',
-        'create_image_sticker': 'sticker',
         'create_text_sticker': 'sticker',
         'create_image_sticker': 'sticker',
         'update_memory': 'update_memory',
@@ -102,42 +103,39 @@ async function handleFunctionCalls(bot, message, chat, chatId, chatHistory, func
                     const newMemory = currentMemory ? `${currentMemory}\n- ${fact}` : `- ${fact}`;
                     await saveMemory(chatId, newMemory);
                     chatHistory.push({ role: "model", text: `[Memori Diperbarui: ${fact}]` });
-                    if (fact) {
-                        const currentMemory = await loadMemory(chatId);
-                        const newMemory = currentMemory ? `${currentMemory}\n- ${fact}` : `- ${fact}`;
-                        await saveMemory(chatId, newMemory);
-                        chatHistory.push({ role: "model", text: `[Memori Diperbarui: ${fact}]` });
-                    }
-                } else if (commandName === 'schedule_task') {
-                    const { type, delay_seconds, content } = call.args;
-                    const executeAt = Date.now() + (delay_seconds * 1000);
-
-                    bot.scheduler.addTask({
-                        id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                        chatId: chatId,
-                        type: type,
-                        payload: type === 'image_generation' ? { prompt: content } : { text: content },
-                        executeAt: executeAt,
-                        createdAt: Date.now()
-                    });
-
-                    chatHistory.push({ role: "model", text: `[Tugas Dijadwalkan: ${type} dalam ${delay_seconds} detik]` });
-
-                } else if (commandName) {
-                    const command = bot.commands.get(commandName);
-                    if (command) {
-                        const argsArray = call.args.prompt ? [call.args.prompt] :
-                            call.args.text ? [call.args.text] : [];
-                        await command.execute(message, argsArray, bot, chatHistory);
-                        chatHistory.push({ role: "model", text: `[Executed .${commandName}]` });
-                    }
-                } else {
-                    const func = bot.functions.get(call.name);
-                    if (func) await func.execute(bot, message, chat, chatHistory, call.args);
                 }
-            } catch (error) {
-                Logger.error('AI_FUNCTION', `Error in ${call.name}`, { error: error.message });
+            } else if (commandName === 'schedule_task') {
+                const { type, delay_seconds, content } = call.args;
+                const executeAt = Date.now() + (delay_seconds * 1000);
+
+                bot.scheduler.addTask({
+                    id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    chatId: chatId,
+                    type: type,
+                    payload: type === 'image_generation' ? { prompt: content } : { text: content },
+                    executeAt: executeAt,
+                    createdAt: Date.now()
+                });
+
+                chatHistory.push({ role: "model", text: `[Tugas Dijadwalkan: ${type} dalam ${delay_seconds} detik]` });
+
+            } else if (commandName) {
+                const command = bot.commands.get(commandName);
+                if (command) {
+                    const argsArray = call.args.prompt ? [call.args.prompt] :
+                        call.args.text ? [call.args.text] :
+                            call.args.query ? [call.args.query] : [];
+
+                    await command.execute(message, argsArray, bot, chatHistory);
+                    chatHistory.push({ role: "model", text: `[Executed .${commandName}]` });
+                }
+            } else {
+                const func = bot.functions.get(call.name);
+                if (func) await func.execute(bot, message, chat, chatHistory, call.args);
             }
+        } catch (error) {
+            Logger.error('AI_FUNCTION', `Error in ${call.name}`, { error: error.message });
         }
-    await saveChatHistory(chatId, chatHistory);
     }
+    await saveChatHistory(chatId, chatHistory);
+}
