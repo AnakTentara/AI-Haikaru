@@ -28,41 +28,41 @@ export default {
 
     // 3. Prepare AI Context & Process Media
     const senderWID = message.author || from;
-    const senderName = message._data.notifyName || senderWID.split("@")[0];
+    const contact = await message.getContact();
+    const senderName = contact.name || message._data.notifyName || "Unknown";
+    const senderPhone = senderWID.split("@")[0];
+
+    // Identity format: [Name/Phone/JID]
+    // Example: [Haikal/6289675732001/6289675732001@c.us]
+    const identityTag = `[${senderName}/${senderPhone}/${senderWID}]`;
+
     const timeStr = new Date(message.timestamp * 1000).toLocaleTimeString("id-ID", {
       hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta"
     });
 
-    // Clean user text from mentions
+    // Clean user text from mentions (only for cleanText processing, raw text might be needed)
     const targetUserIds = config.targetUserIds || [];
     const mentionRegex = new RegExp(`@(${targetUserIds.join("|")})`, "g");
     const cleanText = body.replace(mentionRegex, "").trim();
 
-    const newMessage = {
-      role: "user",
-      text: `[${timeStr}] [${senderName}]: ${cleanText}`
-    };
+    let fullText = `${cleanText}`;
 
-    // Process Media (Images, Docs, Audio)
-    const mediaData = await processIncomingMedia(bot, message);
-    if (mediaData) {
-      if (mediaData.image) newMessage.image = mediaData.image;
-      if (mediaData.systemNote) newMessage.text += mediaData.systemNote;
-    }
-
-    // 4. Save to History
-    await appendChatMessage(chatId, newMessage);
-
-    // 5. Determine if we should respond with AI
-    const botId = bot.client.info.wid.user;
-    const isPrivate = !(await message.getChat()).isGroup;
-    const isMentioned = mentionedIds.some(m => targetUserIds.some(t => m.startsWith(t)));
-
+    // Handle Quoted Message (Reply Context)
     let isReplyToBot = false;
+    let quotedBody = "";
     if (hasQuotedMsg) {
       const quoted = await message.getQuotedMessage();
       isReplyToBot = quoted.fromMe || quoted.author?.startsWith(botId) || quoted.from?.startsWith(botId);
+
+      // Limit quoted text length for sanity
+      quotedBody = quoted.body.substring(0, 100).replace(/\n/g, " ");
+      fullText += `\n[Replying to: "${quotedBody}"]`;
     }
+
+    const newMessage = {
+      role: "user",
+      text: `[${timeStr}] ${identityTag}: ${fullText}`
+    };
 
     const shouldRespond = isPrivate || isMentioned || isReplyToBot;
 

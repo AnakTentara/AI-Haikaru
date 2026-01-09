@@ -21,6 +21,8 @@ import OpenAI from 'openai';
 
 import modelManager from './handlers/modelManager.js';
 
+import AutonomousHandler from './handlers/autonomousHandler.js';
+
 class WhatsAppBot {
     constructor() {
         // ... (existing config)
@@ -37,6 +39,9 @@ class WhatsAppBot {
         this.prefix = config.prefix;
         this.config = config;
         this.version = config.version;
+
+        // New Autonomous Handler
+        this.autonomous = new AutonomousHandler(this);
 
         // AI Configuration from config.json
         const geminiBaseURL = config.ai?.gemini?.baseURL || "https://generativelanguage.googleapis.com/v1beta/openai/";
