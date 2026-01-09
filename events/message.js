@@ -74,5 +74,11 @@ export default {
       // Auto-reaction logic if not responding
       await handleAutoReaction(bot, message, chatId);
     }
+
+    // 6. Start Autonomous Monitoring (if Group)
+    if (!isPrivate && bot.autonomous) {
+      bot.autonomous.startMonitoring(chatId);
+    }
   },
 };
+```
