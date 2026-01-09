@@ -356,10 +356,6 @@ export async function getGeminiResponse(
 
 /**
  * Menganalisis audio/VN untuk transkrip dan deskripsi suasana (soundscape).
- * Menggunakan direct fetch ke Gemini API karena SDK OpenAI-compatible belum tentu dukung input_audio.
- */
-/**
- * Menganalisis audio/VN untuk transkrip dan deskripsi suasana (soundscape).
  * Menggunakan direct fetch ke Gemini API karena support audio raw lebih stabil via REST.
  * Mendukung rotasi model dan API key.
  */
@@ -425,6 +421,12 @@ Output harus berupa paragraf deskriptif yang informatif dalam Bahasa Indonesia.
 				if (response.status === 429) {
 					console.warn(`⚠️ [Key_${i}] ${modelId} hit limit (429). Trying next key...`);
 					continue; // Try next key
+				}
+
+				if (response.status === 404) {
+					console.error(`❌ [Key_${i}] Model ${modelId} not found (404). API endpoint might be invalid.`);
+					lastError = "Model Not Found";
+					break; // Skip all keys for this model, try next model
 				}
 
 				const data = await response.json();

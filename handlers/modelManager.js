@@ -75,8 +75,8 @@ class ModelManager {
             ];
         } else if (taskType === 'audio') {
             chain = [
-                'gemini-2.5-flash', // Best for multimodal analysis
-                'gemini-2.5-flash-lite' // Fallback
+                'gemini-2.5-flash-lite', // Available in config
+                'gemini-2.5-flash' // Available in config
             ];
         } else { // default 'chat'
             chain = [
