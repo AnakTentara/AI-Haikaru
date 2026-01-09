@@ -28,8 +28,16 @@ export default {
 
     // 3. Prepare AI Context & Process Media
     const senderWID = message.author || from;
-    const contact = await message.getContact();
-    const senderName = contact.name || message._data.notifyName || "Unknown";
+
+    let senderName = "Unknown";
+    try {
+      const contact = await message.getContact();
+      senderName = contact.name || message._data.notifyName || "Unknown";
+    } catch (error) {
+      // Fallback if contact fetch fails (common in wwebjs)
+      senderName = message._data.notifyName || "Unknown";
+    }
+
     const senderPhone = senderWID.split("@")[0];
 
     // Identity format: [Name/Phone/JID]
