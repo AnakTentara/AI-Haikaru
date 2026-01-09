@@ -10,7 +10,11 @@ export function formatPingMessage(data, aiSalutation) {
 }
 
 export default {
-  // ...
+  name: "ping",
+  description: "Cek responsivitas bot",
+  usage: ".ping",
+  prefixRequired: true,
+  triggers: [".ping"],
   async execute(message, args, bot, chatHistory) {
     Logger.function('check_ping', `Executing function: check_ping`);
 

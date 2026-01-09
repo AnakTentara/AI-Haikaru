@@ -50,7 +50,7 @@ class ModelManager {
                     val.lastResetDay = now.getDate();
                 }
             });
-            Logger.debug('MODEL_MANAGER', 'Usage counters reset (Minute cycle)');
+            Logger.info('MODEL_MANAGER', 'Usage counters reset (Minute cycle)');
         }, 60000);
     }
 
@@ -118,7 +118,7 @@ class ModelManager {
             u.usedRPD += 1;
             u.usedTPM += tokens;
 
-            Logger.debug('MODEL_MANAGER', `Usage updated for ${modelId}`, {
+            Logger.info('MODEL_MANAGER', `Usage updated for ${modelId}`, {
                 RPM: `${u.usedRPM}/${modelInfo.rpm}`,
                 RPD: `${u.usedRPD}/${modelInfo.rpd}`,
                 TPM: `${u.usedTPM}/${modelInfo.tpm}`
