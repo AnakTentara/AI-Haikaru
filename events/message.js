@@ -32,6 +32,7 @@ export default {
 
     // Bypass getContact() to avoid "windows.Store.ContactMethods.getIsMyContact is not a function" error
     // We rely on the notifyName (PushName) that came with the message packet.
+    
     if (message._data && (message._data.notifyName || message._data.pushname)) {
       senderName = message._data.notifyName || message._data.pushname;
     }
