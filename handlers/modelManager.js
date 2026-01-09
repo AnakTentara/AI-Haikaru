@@ -71,8 +71,7 @@ class ModelManager {
             chain = [
                 'gemini-2.5-flash-lite',
                 'gemma-3-4b',
-                'gemma-3-2b',
-                'gemma-3-1b'
+                'gemma-3-27b' // Upgrade fallback to 27b
             ];
         } else if (taskType === 'audio') {
             chain = [

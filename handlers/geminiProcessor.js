@@ -99,7 +99,7 @@ export async function getGeminiChatResponse(
 			type: "function",
 			function: {
 				name: "tag_everyone",
-				description: "Tag/mention semua member di grup. HANYA gunakan di grup.",
+				description: "Tag/mention semua member di grup. HANYA gunakan jika user SECARA EKSPLISIT meminta untuk 'tag semua', 'mention all', atau sejenisnya. JANGAN gunakan untuk sapaan biasa.",
 				parameters: { type: "object", properties: {}, required: [] }
 			}
 		},
