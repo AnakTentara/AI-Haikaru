@@ -358,13 +358,30 @@ export async function getGeminiResponse(
  * Menganalisis audio/VN untuk transkrip dan deskripsi suasana (soundscape).
  * Menggunakan direct fetch ke Gemini API karena SDK OpenAI-compatible belum tentu dukung input_audio.
  */
+/**
+ * Menganalisis audio/VN untuk transkrip dan deskripsi suasana (soundscape).
+ * Menggunakan direct fetch ke Gemini API karena support audio raw lebih stabil via REST.
+ * Mendukung rotasi model dan API key.
+ */
 export async function analyzeAudio(bot, audioData, mimeType) {
-	const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_2;
-	if (!apiKey) return null;
+	// 1. Get Audio Model Chain
+	const modelChain = modelManager.getFallbackChain('audio');
+	let lastError = null;
 
-	const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+	// 2. Loop through Models
+	for (const modelId of modelChain) {
+		console.log(`📡 Analyzing Audio with model: ${modelId}`);
 
-	const systemPrompt = `
+		// 3. Loop through API Keys (1 to 10)
+		for (let i = 1; i <= 10; i++) {
+			const keyName = i === 1 ? 'GEMINI_API_KEY' : `GEMINI_API_KEY_${i}`;
+			const apiKey = process.env[keyName];
+
+			if (!apiKey) continue;
+
+			const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+
+			const systemPrompt = `
 Kamu adalah pakar analisis audio. Tugasmu adalah mendengarkan audio yang diberikan dan memberikan laporan super lengkap dalam format teks agar AI lain bisa "membayangkan" apa yang terjadi.
 
 WAJIB SERTAKAN:
@@ -377,45 +394,59 @@ WAJIB SERTAKAN:
 Output harus berupa paragraf deskriptif yang informatif dalam Bahasa Indonesia.
 `;
 
-	const requestBody = {
-		contents: [{
-			parts: [
-				{ text: systemPrompt },
-				{
-					inlineData: {
-						mimeType: mimeType,
-						data: audioData
-					}
+			const requestBody = {
+				contents: [{
+					parts: [
+						{ text: systemPrompt },
+						{
+							inlineData: {
+								mimeType: mimeType,
+								data: audioData
+							}
+						}
+					]
+				}],
+				generationConfig: {
+					temperature: 0.4,
+					topP: 0.95,
+					topK: 64,
+					maxOutputTokens: 1024,
 				}
-			]
-		}],
-		generationConfig: {
-			temperature: 0.4,
-			topP: 0.95,
-			topK: 64,
-			maxOutputTokens: 1024,
+			};
+
+			try {
+				console.log(`🤖 [Key_${i}] Sending Audio to ${modelId}...`);
+				const response = await fetch(url, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(requestBody)
+				});
+
+				if (response.status === 429) {
+					console.warn(`⚠️ [Key_${i}] ${modelId} hit limit (429). Trying next key...`);
+					continue; // Try next key
+				}
+
+				const data = await response.json();
+
+				if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+					const result = data.candidates[0].content.parts[0].text.trim();
+					modelManager.updateUsage(modelId, 0); // No token data from fetch easily, skipping count for now
+					return result;
+				} else {
+					console.error(`❌ [Key_${i}] Model ${modelId} error:`, JSON.stringify(data));
+					lastError = data;
+					continue; // Try next key/model
+				}
+			} catch (error) {
+				console.error(`❌ [Key_${i}] Fetch error:`, error.message);
+				lastError = error;
+				continue;
+			}
 		}
-	};
-
-	try {
-		console.log(`🤖 Analyzing audio soundscape with Gemini 1.5 Flash...`);
-		const response = await fetch(url, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(requestBody)
-		});
-
-		const data = await response.json();
-
-		if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-			const result = data.candidates[0].content.parts[0].text.trim();
-			return result;
-		} else {
-			console.error("❌ Gemini Audio analysis failed:", JSON.stringify(data));
-			return null;
-		}
-	} catch (error) {
-		console.error("❌ Audio analysis error:", error.message);
-		return null;
+		console.warn(`🚩 All keys failed for ${modelId}. Falling back...`);
 	}
+
+	console.error("❌ All models and keys failed for audio analysis.");
+	return null;
 }

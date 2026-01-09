@@ -3,30 +3,35 @@
         {
             "id": "gemini-2.5-flash-lite",
             "displayName": "Gemini 2.5 Flash Lite",
+            "description": "Lightweight, fast text-out model. Best for general chat and quick responses.",
             "tier": "mid",
             "rpm": 10,
             "tpm": 250000,
             "rpd": 20,
             "tags": [
                 "chat",
-                "general"
+                "general",
+                "fast"
             ]
         },
         {
             "id": "gemini-2.5-flash-tts",
             "displayName": "Gemini 2.5 Flash TTS",
+            "description": "Generative Speech model. Best for creating natural sounding voice responses.",
             "tier": "special",
             "rpm": 3,
             "tpm": 10000,
             "rpd": 10,
             "tags": [
                 "audio",
-                "multimodal"
+                "speech",
+                "tts"
             ]
         },
         {
             "id": "gemini-2.5-flash",
             "displayName": "Gemini 2.5 Flash",
+            "description": "Standard Flash model. Balanced performance for complex tasks and vision.",
             "tier": "high",
             "rpm": 5,
             "tpm": 250000,
@@ -34,12 +39,14 @@
             "tags": [
                 "coding",
                 "complex",
-                "vision"
+                "vision",
+                "audio-analysis"
             ]
         },
         {
             "id": "gemini-3-flash",
             "displayName": "Gemini 3 Flash",
+            "description": "Next-gen Flash model. Highest capability for reasoning and coding.",
             "tier": "high",
             "rpm": 5,
             "tpm": 250000,
@@ -47,35 +54,40 @@
             "tags": [
                 "coding",
                 "complex",
-                "latest"
+                "reasoning"
             ]
         },
         {
             "id": "gemini-robotics-er-1.5-preview",
             "displayName": "Gemini Robotics 1.5 Preview",
+            "description": "Specialized model for robotics and spatial reasoning.",
             "tier": "special",
             "rpm": 10,
             "tpm": 250000,
             "rpd": 20,
             "tags": [
-                "specialized"
+                "experimental",
+                "spatial"
             ]
         },
         {
             "id": "gemma-3-27b",
             "displayName": "Gemma 3 27B",
+            "description": "High-param open model. Good fallback for complex logic.",
             "tier": "mid",
             "rpm": 30,
             "tpm": 15000,
             "rpd": 14400,
             "tags": [
                 "chat",
-                "fallback"
+                "fallback",
+                "complex"
             ]
         },
         {
             "id": "gemma-3-12b",
             "displayName": "Gemma 3 12B",
+            "description": "Mid-param open model. Balanced constraint handling.",
             "tier": "mid",
             "rpm": 30,
             "tpm": 15000,
@@ -88,46 +100,48 @@
         {
             "id": "gemma-3-4b",
             "displayName": "Gemma 3 4B",
+            "description": "Efficient open model. Great for quick chats on mobile.",
             "tier": "low",
             "rpm": 30,
             "tpm": 15000,
             "rpd": 14400,
             "tags": [
                 "simple",
-                "emoji",
-                "short"
+                "short",
+                "fast"
             ]
         },
         {
             "id": "gemma-3-2b",
             "displayName": "Gemma 3 2B",
+            "description": "Tiny open model. Extremely fast for simple tasks.",
             "tier": "low",
             "rpm": 30,
             "tpm": 15000,
             "rpd": 14400,
             "tags": [
                 "simple",
-                "emoji",
-                "short"
+                "emoji"
             ]
         },
         {
             "id": "gemma-3-1b",
             "displayName": "Gemma 3 1B",
+            "description": "Nano open model. Lowest latency, minimal reasoning.",
             "tier": "low",
             "rpm": 30,
             "tpm": 15000,
             "rpd": 14400,
             "tags": [
                 "simple",
-                "emoji",
-                "short"
+                "emoji"
             ]
         },
         {
             "id": "gemini-embedding-1.0",
             "displayName": "Gemini Embedding 1.0",
-            "tier": "special",
+            "description": "Embedding model for semantic search and retrieval.",
+            "tier": "utility",
             "rpm": 100,
             "tpm": 30000,
             "rpd": 1000,
@@ -137,14 +151,15 @@
         },
         {
             "id": "gemini-2.5-flash-native-audio-dialog",
-            "displayName": "Gemini 2.5 Flash Native Audio",
-            "tier": "special",
+            "displayName": "Gemini Live Audio",
+            "description": "Native audio dialog model. Extremely high throughput.",
+            "tier": "live",
             "rpm": 99999,
             "tpm": 1000000,
             "rpd": 99999,
             "tags": [
-                "live",
-                "audio"
+                "audio",
+                "live"
             ]
         }
     ]
