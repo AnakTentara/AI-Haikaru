@@ -17,7 +17,7 @@ const config = JSON.parse(
     fs.readFileSync(join(__dirname, "config.json"), "utf8"),
 );
 
-import OpenAI from 'openai';
+import OpenAI from 'openai'; // Tetap dipakai sebagai SDK client untuk Gemini
 
 import modelManager from './handlers/modelManager.js';
 
@@ -26,7 +26,6 @@ import SchedulerHandler from './handlers/schedulerHandler.js';
 
 class WhatsAppBot {
     constructor() {
-        // ... (existing config)
         this.modelManager = modelManager;
         const clientConfig = {
             authStrategy: new LocalAuth(),
@@ -41,20 +40,20 @@ class WhatsAppBot {
         this.config = config;
         this.version = config.version;
 
-        // New Autonomous Handler
+        // Autonomous & Scheduler
         this.autonomous = new AutonomousHandler(this);
-
-        // New Scheduler Handler
         this.scheduler = new SchedulerHandler(this);
 
-        // AI Configuration from config.json
+        // AI Configuration
         const geminiBaseURL = config.ai?.gemini?.baseURL || "https://generativelanguage.googleapis.com/v1beta/openai/";
-        const openaiBaseURL = config.ai?.openai?.baseURL || "https://api.openai.com/v1";
+        
+        // --- SETUP API KEYS (GEMINI ONLY) ---
 
-        // Main AI - Build fallback chain from all available Gemini keys (up to 10)
+        // 1. MAIN AI POOL (Keys 1 - 40)
+        // Digunakan untuk: Chat Utama, Coding, Function Calling, Audio Analysis
         this.geminiClients = [];
 
-        // Primary key
+        // Primary Key (Key 1)
         if (process.env.GEMINI_API_KEY) {
             this.geminiClients.push({
                 client: new OpenAI({ apiKey: process.env.GEMINI_API_KEY, baseURL: geminiBaseURL }),
@@ -63,8 +62,8 @@ class WhatsAppBot {
             console.log("✅ Main AI Primary (GEMINI_API_KEY)");
         }
 
-        // Secondary keys (2 to 25)
-        for (let i = 2; i <= 25; i++) {
+        // Secondary Keys (Key 2 - 40)
+        for (let i = 2; i <= 40; i++) {
             const keyName = `GEMINI_API_KEY_${i}`;
             const keyValue = process.env[keyName];
 
@@ -77,52 +76,59 @@ class WhatsAppBot {
             }
         }
 
-        if (this.geminiClients.length === 0) {
-            console.error("❌ CRITICAL: No GEMINI_API_KEY found in .env! AI features will be disabled.");
-        } else {
-            console.log(`✅ Loaded ${this.geminiClients.length} Gemini API Clients.`);
+        // 2. HELPER AI POOL (Keys 41 - 45) - PENGGANTI OPENAI
+        // Digunakan untuk: Emoji Reaction, Short Helper, Grounding Summary
+        this.helperClients = [];
+
+        for (let i = 41; i <= 45; i++) {
+            const keyName = `GEMINI_API_KEY_${i}`;
+            const keyValue = process.env[keyName];
+
+            if (keyValue) {
+                this.helperClients.push({
+                    client: new OpenAI({ apiKey: keyValue, baseURL: geminiBaseURL }),
+                    name: `Helper_Key_${i}`
+                });
+                console.log(`🛡️ Helper AI Key ${i} (${keyName}) - Dedicated for Background Tasks`);
+            }
         }
 
-        // OpenAI - Context/Helper/Reaction/Grounding (OPENAI_API_KEY)
-        if (process.env.OPENAI_API_KEY) {
-            this.openaiClient = new OpenAI({
-                apiKey: process.env.OPENAI_API_KEY,
-                baseURL: openaiBaseURL
-            });
-            console.log("✅ OpenAI Client (Context/Helper/Reaction/Grounding)");
+        // Validation
+        if (this.geminiClients.length === 0) {
+            console.error("❌ CRITICAL: Tidak ada GEMINI_API_KEY (1-40) ditemukan!");
+        } else {
+            console.log(`🚀 Main AI Ready: ${this.geminiClients.length} Clients loaded.`);
         }
+
+        if (this.helperClients.length === 0) {
+            console.warn("⚠️ WARNING: Tidak ada Helper Keys (41-45). Bot akan menggunakan Main Keys untuk tugas helper.");
+        } else {
+            console.log(`🛡️ Helper AI Ready: ${this.helperClients.length} Clients loaded.`);
+        }
+        
+        // Hapus referensi OpenAI lama agar tidak ada kebingungan
+        this.openaiClient = null;
 
     } // End of constructor
 
     async loadCommands() {
         const commandsPath = join(__dirname, "commands");
-
         try {
-            const commandFiles = fs
-                .readdirSync(commandsPath)
-                .filter((file) => file.endsWith(".js"));
-
-            console.log(`Ditemukan ${commandFiles.length} file di folder commands: ${commandFiles.join(", ")}`);
+            const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".js"));
+            console.log(`Ditemukan ${commandFiles.length} file di folder commands.`);
 
             for (const file of commandFiles) {
                 try {
                     const filePath = join(commandsPath, file);
                     const commandModule = await import(`file://${filePath}?update=${Date.now()}`);
-
                     const command = commandModule.default;
-
-                    if (command && typeof command === 'object' && command.name) {
+                    if (command && command.name) {
                         this.commands.set(command.name.toLowerCase(), command);
-                        console.log(`✓ Perintah dimuat: ${command.name} ← dari ${file}`);
-                    } else {
-                        console.error(`File ${file} tidak memiliki export default yang valid!`);
                     }
                 } catch (error) {
                     console.error(`GAGAL memuat ${file}:`, error.message);
-                    console.error(error.stack);
                 }
             }
-
             console.log(`Total perintah berhasil dimuat: ${this.commands.size}`);
         } catch (error) {
             console.error("Gagal membaca direktori perintah:", error.message);
@@ -131,65 +137,41 @@ class WhatsAppBot {
 
     async loadFunctions() {
         const functionsPath = join(__dirname, "functions");
-
         try {
-            const functionFiles = fs
-                .readdirSync(functionsPath)
-                .filter((file) => file.endsWith(".js"));
-
-            console.log(`Ditemukan ${functionFiles.length} file di folder functions: ${functionFiles.join(", ")}`);
-
+            const functionFiles = fs.readdirSync(functionsPath).filter((file) => file.endsWith(".js"));
             for (const file of functionFiles) {
                 try {
                     const filePath = join(functionsPath, file);
                     const functionModule = await import(`file://${filePath}?update=${Date.now()}`);
-
                     const func = functionModule.default;
-
-                    if (func && typeof func === 'object' && func.name) {
+                    if (func && func.name) {
                         this.functions.set(func.name, func);
-                        console.log(`✓ Function loaded: ${func.name} ← dari ${file}`);
-                    } else {
-                        console.error(`File ${file} tidak memiliki export default yang valid!`);
                     }
                 } catch (error) {
-                    console.error(`GAGAL memuat ${file}:`, error.message);
-                    console.error(error.stack);
+                    console.error(`GAGAL memuat function ${file}:`, error.message);
                 }
             }
-
             console.log(`Total functions berhasil dimuat: ${this.functions.size}`);
         } catch (error) {
             console.error("Gagal membaca direktori functions:", error.message);
         }
     }
+
     async loadEvents() {
         const eventsPath = join(__dirname, "events");
-
         try {
-            const eventFiles = fs
-                .readdirSync(eventsPath)
-                .filter((file) => file.endsWith(".js"));
-
+            const eventFiles = fs.readdirSync(eventsPath).filter((file) => file.endsWith(".js"));
             for (const file of eventFiles) {
                 try {
                     const filePath = join(eventsPath, file);
                     const event = await import(`file://${filePath}`);
-
-                    if (event.default && event.default.name && event.default.execute) {
+                    if (event.default?.name && event.default?.execute) {
                         this.events.set(event.default.name, event.default);
-
                         if (event.default.once) {
-                            this.client.once(event.default.name, (...args) =>
-                                event.default.execute(this, ...args),
-                            );
+                            this.client.once(event.default.name, (...args) => event.default.execute(this, ...args));
                         } else {
-                            this.client.on(event.default.name, (...args) =>
-                                event.default.execute(this, ...args),
-                            );
+                            this.client.on(event.default.name, (...args) => event.default.execute(this, ...args));
                         }
-
-                        console.log(`✓ Event dimuat: ${event.default.name}`);
                     }
                 } catch (error) {
                     console.error(`❌ Gagal memuat event ${file}:`, error.message);
@@ -202,22 +184,15 @@ class WhatsAppBot {
 
     async initialize() {
         console.log("🤖 Bot WhatsApp Memulai...");
-        console.log("📂 Memuat perintah dan event...\n");
-
         await this.loadCommands();
         await this.loadFunctions();
         await this.loadEvents();
-
         console.log("\n✨ Bot berhasil diinisialisasi!");
-        console.log("📱 Memulai klien WhatsApp...\n");
-
         this.client.initialize();
         this.scheduler.start();
     }
 }
 
 const bot = new WhatsAppBot();
-
 startServer();
-
 bot.initialize().catch(console.error);

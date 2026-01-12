@@ -10,449 +10,371 @@
  * @returns {Promise<string|object>} - Teks balasan atau function call object.
  */
 
-import { HAIKARU_PERSONA, HELPER_PERSONA } from './persona.js';
+import { HAIKARU_PERSONA } from './persona.js';
 import modelManager from './modelManager.js';
+import fetch from 'node-fetch';
 
 /**
  * Detect task type based on message content
  */
 function detectTaskType(chatHistory) {
-	const lastMessage = chatHistory[chatHistory.length - 1]?.text || "";
-	const lower = lastMessage.toLowerCase();
+    const lastMessage = chatHistory[chatHistory.length - 1]?.text || "";
+    const lower = lastMessage.toLowerCase();
 
-	if (lower.length < 20 && !lower.includes('?')) return 'short';
-	if (lower.includes('code') || lower.includes('program') || lower.includes('javascript') || lower.includes('python')) return 'coding';
-	if (lower.includes('buatkan') || lower.includes('analisis') || lower.includes('jelaskan')) return 'complex';
+    if (lower.length < 20 && !lower.includes('?')) return 'short';
+    if (lower.includes('code') || lower.includes('program') || lower.includes('javascript') || lower.includes('python')) return 'coding';
+    if (lower.includes('buatkan') || lower.includes('analisis') || lower.includes('jelaskan')) return 'complex';
 
-	return 'chat';
-}
-
-export async function getGeminiChatResponse(
-	bot,
-	chatHistory,
-	permanentMemory = "",
-	requestedModel = null,
-) {
-	// 1. Get ordered fallback chain of models
-	const taskType = detectTaskType(chatHistory);
-	const modelChain = requestedModel ? [requestedModel] : modelManager.getFallbackChain(taskType);
-
-	const clients = bot.geminiClients || [];
-	if (clients.length === 0) {
-		return "Maaf, fitur AI sedang tidak aktif. Harap hubungi pengembang (Haikal).";
-	}
-
-	// 2. Prepare System Instruction with Memory
-	let systemInstruction = HAIKARU_PERSONA;
-	if (permanentMemory) {
-		systemInstruction += `\n\n[MEMORI PERMANEN USER/GRUP INI]:\n${permanentMemory}\n(Gunakan memori ini untuk mengingat detail penting tentang user. Jika ada informasi baru yang penting untuk diingat selamanya, gunakan tool update_memory)`;
-	}
-
-	// Convert chat history to OpenAI format
-	const messages = [{ role: "system", content: systemInstruction }];
-
-	for (const msg of chatHistory) {
-		const role = msg.role === "model" ? "assistant" : "user";
-		let content = msg.text;
-
-		if (msg.image && msg.image.data && msg.image.mimeType) {
-			content = [
-				{ type: "text", text: msg.text },
-				{
-					type: "image_url",
-					image_url: {
-						url: `data:${msg.image.mimeType};base64,${msg.image.data}`
-					}
-				}
-			];
-		}
-		messages.push({ role, content });
-	}
-
-	const tools = [
-		// ... (tools remain the same)
-		{
-			type: "function",
-			function: {
-				name: "get_bot_info",
-				description: "Dapatkan informasi tentang bot, statistik, dan info user/chat saat ini.",
-				parameters: { type: "object", properties: {}, required: [] }
-			}
-		},
-		{
-			type: "function",
-			function: {
-				name: "check_ping",
-				description: "Cek responsivitas dan latency bot.",
-				parameters: { type: "object", properties: {}, required: [] }
-			}
-		},
-		{
-			type: "function",
-			function: {
-				name: "show_help_menu",
-				description: "Tampilkan daftar fitur dan kemampuan BOT.",
-				parameters: { type: "object", properties: {}, required: [] }
-			}
-		},
-		{
-			type: "function",
-			function: {
-				name: "tag_everyone",
-				description: "Tag/mention semua member di grup. HANYA gunakan jika user SECARA EKSPLISIT meminta untuk 'tag semua', 'mention all', atau sejenisnya. JANGAN gunakan untuk sapaan biasa. Kamu bisa menyertakan pesan tambahan dalam tag ini.",
-				parameters: {
-					type: "object",
-					properties: {
-						text: { type: "string", description: "Pesan yang ingin disampaikan bersamaan dengan tag (opsional)" }
-					},
-					required: []
-				}
-			}
-		},
-		{
-			type: "function",
-			function: {
-				name: "generate_image",
-				description: "Generate/buat gambar dari deskripsi text.",
-				parameters: {
-					type: "object",
-					properties: {
-						prompt: { type: "string", description: "Deskripsi gambar dalam bahasa Inggris" }
-					},
-					required: ["prompt"]
-				}
-			}
-		},
-		{
-			type: "function",
-			function: {
-				name: "perform_google_search",
-				description: "Lakukan pencarian Google untuk info terkini/real-time.",
-				parameters: {
-					type: "object",
-					properties: {
-						query: { type: "string", description: "Query pencarian yang spesifik" }
-					},
-					required: ["query"]
-				}
-			}
-		},
-		{
-			type: "function",
-			function: {
-				name: "update_memory",
-				description: "Simpan informasi/fakta penting tentang user ke memori permanen agar kamu ingat selamanya.",
-				parameters: {
-					type: "object",
-					properties: {
-						fact: { type: "string", description: "Fakta baru yang ingin diingat" }
-					},
-					required: ["fact"]
-				}
-			}
-		}
-	];
-
-	// 3. Nested Fallback Logic: Model Loop -> Key Loop
-	for (const modelId of modelChain) {
-		console.log(`📡 Trying model: ${modelId} (${taskType})`);
-
-		for (const { client, name: keyName } of clients) {
-			try {
-				console.log(`🤖 [${keyName}] Requesting Gemini with ${modelId}...`);
-
-				const completion = await client.chat.completions.create({
-					model: modelId,
-					messages: messages,
-					temperature: 0.8,
-					tools: tools,
-					tool_choice: "auto",
-				});
-
-				const responseMessage = completion.choices[0].message;
-				modelManager.updateUsage(modelId, completion.usage?.total_tokens || 0);
-
-				if (responseMessage.tool_calls) {
-					const functionCalls = responseMessage.tool_calls.map(tc => ({
-						name: tc.function.name,
-						args: JSON.parse(tc.function.arguments),
-						id: tc.id
-					}));
-
-					return { type: 'function_call', functionCalls: functionCalls };
-				}
-
-				if (!responseMessage.content) return "Ups, respons AI kosong.";
-				return responseMessage.content.trim();
-
-			} catch (error) {
-				if (error.status === 429) {
-					console.warn(`⚠️ [${keyName}] Model ${modelId} hit limit. Trying next key...`);
-					continue;
-				}
-				console.error(`❌ [${keyName}] Error with model ${modelId}:`, error.message);
-				continue; // Try next key
-			}
-		}
-		console.warn(`🚩 All keys failed for ${modelId}. Falling back to next model...`);
-	}
-
-	return "🚫 *AI-Haikaru sedang istirahat!*\n\nSemua model dan kunci API telah mencapai limit hari ini.";
+    return 'chat';
 }
 
 /**
- * Helper function untuk melakukan Google Search via Gemini Grounding
- * Fallback chain: Tertiary → Quaternary → OpenAI (without grounding)
+ * MAIN CHAT PROCESSOR (Uses Keys 1-40)
  */
-import fetch from 'node-fetch';
+export async function getGeminiChatResponse(bot, chatHistory, permanentMemory = "", requestedModel = null) {
+    // 1. Get ordered fallback chain of models
+    const taskType = detectTaskType(chatHistory);
+    const modelChain = requestedModel ? [requestedModel] : modelManager.getFallbackChain(taskType);
 
-export async function getGroundedResponse(bot, query) {
-	if (!bot.openaiClient) {
-		return "Maaf, layanan pencarian tidak tersedia.";
-	}
+    // USE MAIN CLIENTS (1-40)
+    const clients = bot.geminiClients || [];
+    if (clients.length === 0) {
+        return "Maaf, fitur AI sedang tidak aktif. Harap hubungi pengembang (Haikal).";
+    }
 
-	const model = bot.config.ai?.openai?.models?.grounding || "gpt-4o-mini";
+    // 2. Prepare System Instruction with Memory
+    let systemInstruction = HAIKARU_PERSONA;
+    if (permanentMemory) {
+        systemInstruction += `\n\n[MEMORI PERMANEN USER/GRUP INI]:\n${permanentMemory}\n(Gunakan memori ini untuk mengingat detail penting tentang user. Jika ada informasi baru yang penting untuk diingat selamanya, gunakan tool update_memory)`;
+    }
 
-	try {
-		const completion = await bot.openaiClient.chat.completions.create({
-			model: model,
-			messages: [
-				{ role: "system", content: "Kamu adalah asisten yang membantu menjawab pertanyaan. Jawab dengan informatif dan akurat." },
-				{ role: "user", content: query }
-			],
-			temperature: 0.7
-		});
-		console.log("✅ [OpenAI] Grounding response successful");
-		return completion.choices[0].message.content.trim();
-	} catch (error) {
-		if (error.status === 429) {
-			console.warn("⚠️ [OpenAI] Grounding rate limited (429)");
-			return "Layanan pencarian sedang sibuk. Coba lagi sebentar.";
-		}
-		console.error("❌ [OpenAI] Grounding error:", error.message);
-		return `Gagal melakukan pencarian: ${error.message}`;
-	}
+    // Convert chat history
+    const messages = [{ role: "system", content: systemInstruction }];
+
+    for (const msg of chatHistory) {
+        const role = msg.role === "model" ? "assistant" : "user";
+        let content = msg.text;
+
+        if (msg.image && msg.image.data && msg.image.mimeType) {
+            content = [
+                { type: "text", text: msg.text },
+                {
+                    type: "image_url",
+                    image_url: {
+                        url: `data:${msg.image.mimeType};base64,${msg.image.data}`
+                    }
+                }
+            ];
+        }
+        messages.push({ role, content });
+    }
+
+    // Tools Definition (Standard)
+    const tools = [
+        {
+            type: "function",
+            function: {
+                name: "get_bot_info",
+                description: "Dapatkan informasi tentang bot, statistik, dan info user/chat saat ini.",
+                parameters: { type: "object", properties: {}, required: [] }
+            }
+        },
+        {
+            type: "function",
+            function: {
+                name: "check_ping",
+                description: "Cek responsivitas dan latency bot.",
+                parameters: { type: "object", properties: {}, required: [] }
+            }
+        },
+        {
+            type: "function",
+            function: {
+                name: "show_help_menu",
+                description: "Tampilkan daftar fitur dan kemampuan BOT.",
+                parameters: { type: "object", properties: {}, required: [] }
+            }
+        },
+        {
+            type: "function",
+            function: {
+                name: "tag_everyone",
+                description: "Tag/mention semua member di grup. Gunakan HANYA jika diminta eksplisit.",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        text: { type: "string", description: "Pesan yang ingin disampaikan bersamaan dengan tag" }
+                    },
+                    required: []
+                }
+            }
+        },
+        {
+            type: "function",
+            function: {
+                name: "generate_image",
+                description: "Generate/buat gambar dari deskripsi text.",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        prompt: { type: "string", description: "Deskripsi gambar dalam bahasa Inggris" }
+                    },
+                    required: ["prompt"]
+                }
+            }
+        },
+        {
+            type: "function",
+            function: {
+                name: "perform_google_search",
+                description: "Lakukan pencarian Google untuk info terkini/real-time.",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        query: { type: "string", description: "Query pencarian yang spesifik" }
+                    },
+                    required: ["query"]
+                }
+            }
+        },
+        {
+            type: "function",
+            function: {
+                name: "update_memory",
+                description: "Simpan informasi/fakta penting tentang user ke memori permanen.",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        fact: { type: "string", description: "Fakta baru yang ingin diingat" }
+                    },
+                    required: ["fact"]
+                }
+            }
+        },
+         {
+            type: "function",
+            function: {
+                name: "schedule_task",
+                description: "Jadwalkan pengingat atau tugas di masa depan.",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        type: { type: "string", enum: ["reminder", "image_generation"], description: "Jenis tugas" },
+                        content: { type: "string", description: "Isi pesan pengingat atau prompt gambar" },
+                        delay_seconds: { type: "number", description: "Waktu tunda dalam detik" }
+                    },
+                    required: ["type", "content", "delay_seconds"]
+                }
+            }
+        }
+    ];
+
+    // 3. Fallback Logic: Model Loop -> Key Loop
+    for (const modelId of modelChain) {
+        // console.log(`📡 Trying model: ${modelId} (${taskType})`);
+
+        for (const { client, name: keyName } of clients) {
+            try {
+                // console.log(`🤖 [${keyName}] Requesting Gemini with ${modelId}...`);
+
+                const completion = await client.chat.completions.create({
+                    model: modelId,
+                    messages: messages,
+                    temperature: 0.8,
+                    tools: tools,
+                    tool_choice: "auto",
+                });
+
+                const responseMessage = completion.choices[0].message;
+                modelManager.updateUsage(modelId, completion.usage?.total_tokens || 0);
+
+                if (responseMessage.tool_calls) {
+                    const functionCalls = responseMessage.tool_calls.map(tc => ({
+                        name: tc.function.name,
+                        args: JSON.parse(tc.function.arguments),
+                        id: tc.id
+                    }));
+                    return { type: 'function_call', functionCalls: functionCalls };
+                }
+
+                if (!responseMessage.content) return "Ups, respons AI kosong.";
+                return responseMessage.content.trim();
+
+            } catch (error) {
+                if (error.status === 429) {
+                    console.warn(`⚠️ [${keyName}] Model ${modelId} hit limit. Trying next key...`);
+                    continue;
+                }
+                console.error(`❌ [${keyName}] Error with model ${modelId}:`, error.message);
+                continue; 
+            }
+        }
+    }
+
+    return "🚫 *AI-Haikaru sedang istirahat!*\n\nSemua model dan kunci API telah mencapai limit hari ini.";
 }
 
 /**
- * Menganalisis history chat untuk menentukan reaksi emoji yang tepat.
- * Menggunakan mode JSON untuk output terstruktur.
+ * REPLACEMENT FOR OPENAI GROUNDING
+ * Uses Helper Clients (Keys 41-45)
+ */
+export async function getGroundedResponse(bot, query) {
+    // Gunakan Helper Clients, fallback ke Main Clients
+    const clients = (bot.helperClients && bot.helperClients.length > 0) ? bot.helperClients : bot.geminiClients;
+    
+    if (!clients || clients.length === 0) return "Maaf, layanan pencarian tidak tersedia.";
+
+    // Gunakan 'gemini-2.5-flash' untuk keseimbangan kecepatan & akurasi summary
+    const modelId = "gemini-2.5-flash"; 
+
+    for (const { client, name: keyName } of clients) {
+        try {
+            const completion = await client.chat.completions.create({
+                model: modelId,
+                messages: [
+                    { role: "system", content: "Kamu adalah asisten pencari informasi. Jawab pertanyaan user dengan singkat, padat, dan akurat berdasarkan pengetahuanmu." },
+                    { role: "user", content: query }
+                ],
+                temperature: 0.7
+            });
+            console.log(`✅ [${keyName}] Grounding/Search response successful`);
+            return completion.choices[0].message.content.trim();
+        } catch (error) {
+            if (error.status === 429) continue;
+            console.error(`❌ [${keyName}] Grounding error:`, error.message);
+        }
+    }
+    return "Gagal melakukan pencarian (All Keys Limited).";
+}
+
+/**
+ * EMOJI REACTION (Uses Helper Clients 41-45)
+ * Model: gemini-2.5-flash-lite (Fastest)
  */
 export async function analyzeEmojiReaction(bot, chatHistory) {
-	// 1. Get Emoji Model Chain (Gemma prioritized)
-	const modelChain = modelManager.getFallbackChain('emoji');
+    const modelId = "gemini-2.5-flash-lite"; 
 
-	// Ambil 20 pesan terakhir untuk konteks reaksi
-	const recentHistory = chatHistory.slice(-20);
+    // Prioritaskan Helper Clients
+    const clients = (bot.helperClients && bot.helperClients.length > 0) ? bot.helperClients : bot.geminiClients;
 
-	const systemInstruction = `
-Kamu adalah AI yang bertugas memberikan reaksi emoji terhadap pesan terakhir dalam percakapan.
-Tugasmu:
-1. Analisis alur percakapan dari history yang diberikan.
-2. Fokus pada pesan TERAKHIR dari user.
-3. Tentukan emoji yang paling cocok untuk mereaksikan pesan tersebut.
-4. Tentukan tingkat urgensi reaksi:
-   - "wajib": Jika sangat lucu/sedih/penting (Contoh: "Hahahaha", "Turut berduka").
-   - "penting": Jika butuh apresiasi (Contoh: "Keren bang", "Done").
-   - "opsional": Jika obrolan santai biasa.
-   - "tidak_perlu": Jika pesannya sangat singkat/tidak jelas/hanya sapaan.
-
-Output WAJIB JSON:
-{
-  "emoji": "👍", 
-  "urgensi": "opsional",
-  "alasan": "User setuju dengan pendapat sebelumnya"
-}
+    const recentHistory = chatHistory.slice(-15);
+    const systemInstruction = `
+Kamu adalah AI penentu reaksi emoji.
+Tugas: Analisis pesan TERAKHIR user dan tentukan emoji yang cocok.
+Output WAJIB JSON: { "emoji": "👍", "urgensi": "opsional|penting|wajib", "alasan": "..." }
 `;
 
-	const messages = [
-		{ role: "system", content: systemInstruction },
-		...recentHistory.map(m => ({
-			role: m.role === "model" ? "assistant" : "user",
-			content: m.text
-		}))
-	];
+    const messages = [
+        { role: "system", content: systemInstruction },
+        ...recentHistory.map(m => ({
+            role: m.role === "model" ? "assistant" : "user",
+            content: m.text
+        }))
+    ];
 
-	// 2. Loop Models & Keys
-	for (const modelId of modelChain) {
-		const clients = bot.geminiClients || [];
-		for (const { client, name: keyName } of clients) {
-			try {
-				const completion = await client.chat.completions.create({
-					model: modelId,
-					messages: messages,
-					temperature: 0.5,
-					response_format: { type: "json_object" }
-				});
-
-				modelManager.updateUsage(modelId, completion.usage?.total_tokens || 0);
-				const content = completion.choices[0].message.content;
-				return JSON.parse(content);
-
-			} catch (error) {
-				// Ignore errors, try next key/model
-				continue;
-			}
-		}
-	}
-
-	return null;
-}
-
-export async function getGeminiResponse(
-	bot,
-	userPrompt,
-	chatHistory = [],
-	modelName = null,
-) {
-	// 1. Determine model (Prefer Gemini via Manager for consistency)
-	const modelId = modelName || modelManager.selectModel('short');
-
-	// 2. Prepare Messages
-	const systemInstruction = HAIKARU_PERSONA;
-	const messages = [{ role: "system", content: systemInstruction }];
-
-	// Add context from history if provided
-	if (chatHistory && chatHistory.length > 0) {
-		for (const msg of chatHistory.slice(-10)) { // Just 10 messages for helper context
-			const role = msg.role === "model" ? "assistant" : "user";
-			messages.push({ role, content: msg.text });
-		}
-	}
-
-	messages.push({ role: "user", content: userPrompt });
-
-	// 3. Try Gemini Clients first (fallback chain)
-	const clients = bot.geminiClients || [];
-	for (const { client, name: keyName } of clients) {
-		try {
-			const completion = await client.chat.completions.create({
-				model: modelId,
-				messages: messages,
-				temperature: 1.0,
-			});
-
-			const response = completion.choices[0].message.content.trim();
-			modelManager.updateUsage(modelId, completion.usage?.total_tokens || 0);
-			return response;
-		} catch (error) {
-			console.warn(`⚠️[${keyName}] Helper AI (Gemini) failed: ${error.message} `);
-			continue;
-		}
-	}
-
-	// 4. Final Fallback to OpenAI
-	const openaiClient = bot.openaiClient || bot.openai;
-	if (!openaiClient) return "⚠️ Maaf, AI-Haikaru sedang lelah.";
-
-	try {
-		const completion = await openaiClient.chat.completions.create({
-			model: "gpt-4o-mini",
-			messages: messages,
-			temperature: 1.0,
-		});
-		return completion.choices[0].message.content.trim();
-	} catch (error) {
-		console.error("❌ Helper AI total failure:", error.message);
-		return "Aduh, aku pusing banget. Coba lagi nanti ya!";
-	}
+    for (const { client } of clients) {
+        try {
+            const completion = await client.chat.completions.create({
+                model: modelId,
+                messages: messages,
+                temperature: 0.5,
+                response_format: { type: "json_object" }
+            });
+            return JSON.parse(completion.choices[0].message.content);
+        } catch (error) {
+            continue;
+        }
+    }
+    return null;
 }
 
 /**
- * Menganalisis audio/VN untuk transkrip dan deskripsi suasana (soundscape).
- * Menggunakan direct fetch ke Gemini API karena support audio raw lebih stabil via REST.
- * Mendukung rotasi model dan API key.
+ * HELPER/SHORT RESPONSE (Uses Helper Clients 41-45)
+ * Model: gemini-2.5-flash-lite
+ */
+export async function getGeminiResponse(bot, userPrompt, chatHistory = [], modelName = null) {
+    const modelId = modelName || "gemini-2.5-flash-lite";
+    
+    // Gunakan Helper Clients
+    const clients = (bot.helperClients && bot.helperClients.length > 0) ? bot.helperClients : bot.geminiClients;
+
+    const messages = [{ role: "system", content: HAIKARU_PERSONA }];
+    if (chatHistory.length > 0) {
+        for (const msg of chatHistory.slice(-5)) {
+            messages.push({ role: msg.role === "model" ? "assistant" : "user", content: msg.text });
+        }
+    }
+    messages.push({ role: "user", content: userPrompt });
+
+    for (const { client, name } of clients) {
+        try {
+            const completion = await client.chat.completions.create({
+                model: modelId,
+                messages: messages,
+                temperature: 0.9,
+            });
+            return completion.choices[0].message.content.trim();
+        } catch (error) {
+            console.warn(`⚠️ [${name}] Helper AI failed:`, error.message);
+            continue;
+        }
+    }
+    return "Maaf, AI Helper sedang sibuk.";
+}
+
+/**
+ * AUDIO ANALYSIS (Direct REST API)
+ * Updated to support keys up to 40 (Main Pool)
+ * Model: gemini-2.5-flash
  */
 export async function analyzeAudio(bot, audioData, mimeType) {
-	// 1. Get Audio Model Chain
-	const modelChain = modelManager.getFallbackChain('audio');
-	let lastError = null;
+    const modelChain = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]; // Fallback chain specific for audio
 
-	// 2. Loop through Models
-	for (const modelId of modelChain) {
-		console.log(`📡 Analyzing Audio with model: ${modelId} `);
+    for (const modelId of modelChain) {
+        // Loop through MAIN keys (1 to 40)
+        for (let i = 1; i <= 40; i++) {
+            const keyName = i === 1 ? 'GEMINI_API_KEY' : `GEMINI_API_KEY_${i}`;
+            const apiKey = process.env[keyName];
 
-		// 3. Loop through API Keys (1 to 25)
-		for (let i = 1; i <= 25; i++) {
-			const keyName = i === 1 ? 'GEMINI_API_KEY' : `GEMINI_API_KEY_${i} `;
-			const apiKey = process.env[keyName];
+            if (!apiKey) continue;
 
-			if (!apiKey) continue;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
 
-			const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
-
-			const systemPrompt = `
-Kamu adalah pakar analisis audio. Tugasmu adalah mendengarkan audio yang diberikan dan memberikan laporan super lengkap dalam format teks agar AI lain bisa "membayangkan" apa yang terjadi.
-
-WAJIB SERTAKAN:
-1. TRANSKRIP LENGKAP: Apa yang diucapkan (jika ada suara manusia).
-2. LOKASI/SUASANA: Di mana user berada? (misal: di jalan raya, cafe berisik, kamar sunyi, dsb).
-3. NOISE & GANGGUAN: Terdengar suara angin, klakson, gesekan mic, atau statis?
-4. SOUND EVENTS: Apakah ada suara mendadak? (misal: benda jatuh, orang teriak di jauh, suara binatang, dsb).
-5. EMOSI & NADA: Bagaimana nada bicara user? (misal: terburu-buru, santai, sedih, marah).
-
-Output harus berupa paragraf deskriptif yang informatif dalam Bahasa Indonesia.
+            const systemPrompt = `
+Kamu adalah pakar analisis audio. Dengarkan audio ini dan buat laporan:
+1. TRANSKRIP LENGKAP.
+2. LOKASI/SUASANA.
+3. EMOSI & NADA.
+Output Bahasa Indonesia.
 `;
+            const requestBody = {
+                contents: [{
+                    parts: [
+                        { text: systemPrompt },
+                        { inlineData: { mimeType: mimeType, data: audioData } }
+                    ]
+                }]
+            };
 
-			const requestBody = {
-				contents: [{
-					parts: [
-						{ text: systemPrompt },
-						{
-							inlineData: {
-								mimeType: mimeType,
-								data: audioData
-							}
-						}
-					]
-				}],
-				generationConfig: {
-					temperature: 0.4,
-					topP: 0.95,
-					topK: 64,
-					maxOutputTokens: 1024,
-				}
-			};
+            try {
+                // console.log(`🤖 [Key_${i}] Audio Analysis ${modelId}...`);
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
 
-			try {
-				console.log(`🤖 [Key_${i}] Sending Audio to ${modelId}...`);
-				const response = await fetch(url, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(requestBody)
-				});
+                if (response.status === 429) continue;
+                if (response.status === 404) break; // Model not found, skip keys
 
-				if (response.status === 429) {
-					console.warn(`⚠️ [Key_${i}] ${modelId} hit limit (429). Trying next key...`);
-					continue; // Try next key
-				}
-
-				if (response.status === 404) {
-					console.error(`❌ [Key_${i}] Model ${modelId} not found (404). API endpoint might be invalid.`);
-					lastError = "Model Not Found";
-					break; // Skip all keys for this model, try next model
-				}
-
-				const data = await response.json();
-
-				if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-					const result = data.candidates[0].content.parts[0].text.trim();
-					modelManager.updateUsage(modelId, 0); // No token data from fetch easily, skipping count for now
-					return result;
-				} else {
-					console.error(`❌ [Key_${i}] Model ${modelId} error:`, JSON.stringify(data));
-					lastError = data;
-					continue; // Try next key/model
-				}
-			} catch (error) {
-				console.error(`❌ [Key_${i}] Fetch error:`, error.message);
-				lastError = error;
-				continue;
-			}
-		}
-		console.warn(`🚩 All keys failed for ${modelId}. Falling back...`);
-	}
-
-	console.error("❌ All models and keys failed for audio analysis.");
-	return null;
+                const data = await response.json();
+                if (data.candidates?.[0]?.content) {
+                    return data.candidates[0].content.parts[0].text.trim();
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+    }
+    return null;
 }
