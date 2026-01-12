@@ -80,12 +80,13 @@ export async function saveChatHistory(chatId, history) {
 	setImmediate(() => {
 		try {
 			const data = {
-				chatId: chatId,
-				history: history,
-				lastUpdated: new Date().toISOString()
+			chatId: chatId,
+			history: history,
+			messageCount: history.length,
+			 lastUpdated: new Date().toISOString()
 			};
 			fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-			Logger.db('SAVE_HISTORY', `Successfully saved history to JSON: ${chatId}`);
+		Logger.db('SAVE_HISTORY', `Saved ${history.length} messages for ${chatId}`);
 		} catch (error) {
 			Logger.error('DB_HANDLER', `Failed to save history file for ${chatId}`, { error: error.message });
 		}
@@ -106,11 +107,13 @@ export async function appendChatMessage(chatId, message) {
 		data = { history, memory };
 	}
 
-	// 2. Append and Limit
+	// 2. Append and Limit (Keep last 1000 messages, rotate older ones)
 	data.history.push(message);
-	if (data.history.length > 99999) {
-		data.history = data.history.slice(-99999);
-	}
+	const MAX_HISTORY_SIZE = 1000; // Reduced from 99999 for better performance
+	if (data.history.length > MAX_HISTORY_SIZE) {
+	    data.history = data.history.slice(-MAX_HISTORY_SIZE);
+        Logger.info('DB_HANDLER', `History rotated for ${chatId}: ${data.history.length} messages kept`);
+    }
 
 	// 3. Save
 	await saveChatHistory(chatId, data.history);

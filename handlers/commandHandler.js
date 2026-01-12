@@ -37,7 +37,10 @@ export async function handleCommands(bot, message) {
     for (const [name, command] of bot.commands) {
         if (
             command.prefixRequired === false &&
-            command.triggers?.some((trigger) => bodyLower.includes(trigger.toLowerCase()))
+            command.triggers?.some((trigger) => {
+                const regex = new RegExp(`\\b${trigger.toLowerCase()}\\b`, 'i');
+                return regex.test(bodyLower);
+            })
         ) {
             try {
                 Logger.command('COMMAND_HANDLER', `Executing trigger: ${name}`);

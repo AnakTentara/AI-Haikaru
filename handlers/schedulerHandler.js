@@ -29,6 +29,22 @@ class SchedulerHandler {
         try {
             if (fs.existsSync(TASKS_FILE)) {
                 this.tasks = JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8'));
+                
+                // Handle missed tasks from server restart
+                const now = Date.now();
+                const missedTasks = this.tasks.filter(t => t.executeAt <= now);
+                const futureTasks = this.tasks.filter(t => t.executeAt > now);
+                
+                if (missedTasks.length > 0) {
+                    Logger.warning('SCHEDULER', `Found ${missedTasks.length} missed tasks during restart. Executing now...`);
+                    // Execute missed tasks immediately after startup
+                    setTimeout(() => {
+                        missedTasks.forEach(task => this.executeTask(task).catch(console.error));
+                    }, 5000); // 5 second delay to ensure bot is fully ready
+                }
+                
+                this.tasks = futureTasks;
+                this.saveTasks();
                 Logger.info('SCHEDULER', `Loaded ${this.tasks.length} pending tasks.`);
             }
         } catch (error) {

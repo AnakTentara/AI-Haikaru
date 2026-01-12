@@ -1,80 +1,89 @@
-import { loadChatHistory, saveChatHistory, loadMemory, saveMemory } from "./dbHandler.js";
-import { getGeminiChatResponse } from "./geminiProcessor.js";
+import { getGeminiChatResponse } from './geminiProcessor.js';
+import { loadChatHistory, saveChatHistory, appendChatMessage, getPermanentMemory } from './dbHandler.js';
+import { areGroupsIgnored } from './autonomousHandler.js'; 
 import * as emoji from 'node-emoji';
 import Logger from "./logger.js";
 
 /**
  * Orchestrates the AI response flow
  */
-export async function orchestrateAIResponse(bot, message, chat, chatId, newMessage) {
+export async function handleMessage(bot, msg) {
+    const chatId = msg.from;
+    
+    // 1. Cek Ignore List (untuk mode autonomous/grup)
+    if (await areGroupsIgnored(chatId)) return;
+
+    // 2. Typing Indicator
+    const chat = await msg.getChat();
+    await chat.sendStateTyping();
+
+    // 3. Ambil Detail Pengirim (Name, Number, LID)
+    const contact = await msg.getContact();
+    const contactName = contact.name || contact.pushname || contact.number;
+    const contactNumber = contact.number;
+    
+    // Coba ambil LID (Linked Device ID) jika tersedia
+    // msg.author biasanya berisi ID pengirim asli di grup (termasuk LID di versi WA baru)
+    const senderId = msg.author || msg.from; 
+    const lid = senderId.includes('@lid') ? senderId : (contact.id._serialized || "N/A");
+
+    // 4. Format Waktu: [HH:MM:SS, DD/MM/YYYY]
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('id-ID', { hour12: false });
+    const dateStr = now.toLocaleDateString('id-ID');
+    const timestamp = `${timeStr}, ${dateStr}`;
+
+    // 5. Susun Pesan dengan Format Baru yang Diminta
+    // Format: [HH:MM:SS, DD/MM/YYYY] [ContactName] [Number: <ContactNumber> ; Lid: <LidNumber>] : <message>
+    const userMessageContent = `[${timestamp}] [${contactName}] [Number: ${contactNumber} ; Lid: ${lid}] : ${msg.body}`;
+
+    // 6. Load History & Memory
+    const history = await loadChatHistory(chatId);
+    const memory = await getPermanentMemory(chatId);
+
+    // Tambahkan pesan user ke history (System mencatat format lengkap ini agar AI paham konteks)
+    // Kita simpan format lengkapnya ke history agar AI ingat siapa yang bicara sebelumnya
+    const newMessageEntry = { role: "user", text: userMessageContent };
+    await appendChatMessage(chatId, newMessageEntry);
+    
+    // Update history lokal untuk request kali ini
+    const currentHistory = [...history, newMessageEntry];
+
     try {
-        const historyLimit = 50;
-        const thinkingStart = Date.now();
+        // 7. Kirim ke Gemini
+        const response = await getGeminiChatResponse(bot, currentHistory, memory);
 
-        // 1. Prepare Context
-        const permanentMemory = await loadMemory(chatId);
-        const chatHistory = await loadChatHistory(chatId, historyLimit);
-
-        // 2. Get AI Response
-        Logger.ai('AI_CHIEF', 'Requesting response from Gemini fallback engine...');
-        const aiResponse = await getGeminiChatResponse(bot, chatHistory, permanentMemory);
-
-        // 3. Handle Function Calls
-        if (aiResponse.type === 'function_call') {
-            Logger.ai('AI_CHIEF', 'Executing AI function calls');
-            await handleFunctionCalls(bot, message, chat, chatId, chatHistory, aiResponse.functionCalls);
-            return;
+        // 8. Handle Function Calls (Jika AI minta tool)
+        if (typeof response === 'object' && response.type === 'function_call') {
+            Logger.info('AI_CHAT', `Function Call detected: ${response.functionCalls.length} calls`);
+            
+            // Eksekusi function
+            import('./functionHandler.js').then(async ({ handleFunctionCall }) => {
+                const functionResult = await handleFunctionCall(bot, msg, response.functionCalls);
+                
+                // Jika function menghasilkan text balasan (misal: hasil search), kirim ke user
+                if (functionResult) {
+                    await msg.reply(functionResult);
+                    await appendChatMessage(chatId, { role: "model", text: functionResult });
+                }
+            });
+            return; // Selesai, jangan reply double
         }
 
-        // 4. Clean & Send Response
-        // 4. Clean & Send Response
-        // Remove Identity Tags, Timestamps, and accidental JSON dumps
-        const aggressivePrefixRegex = /^(\[.*?\]\s*)+:?\s*/i;
-        let cleanedResponse = aiResponse.replace(aggressivePrefixRegex, "").trim();
-
-        // Anti-Hallucination: If response implies it's sending JSON/History
-        if (cleanedResponse.startsWith('{"') || cleanedResponse.includes('"role": "model"')) {
-            Logger.warn('AI_CHIEF', 'AI attempted to leak JSON history. Suppressed.');
-            cleanedResponse = "Waduh, aku agak error dikit nih. Coba tanya lagi ya? 😅";
+        // 9. Kirim Balasan Biasa (Text)
+        if (response) {
+            // Cek apakah ada request tagging di dalam response (format @628xxx)
+            // WA Web JS otomatis mengubah @nomor menjadi mention jika formatnya benar.
+            await msg.reply(response);
+            await appendChatMessage(chatId, { role: "model", text: response });
         }
 
-        if (!cleanedResponse) cleanedResponse = aiResponse.trim();
-
-        // Convert text emojis (:smile:) to Unicode (😄)
-        // Helper function for safe emoji conversion
-        const emojify = (str) => {
-            try {
-                // Dynamic import to avoid issues if dependency is missing during dev
-                return emoji.emojify(str);
-            } catch (e) {
-                return str;
-            }
-        };
-        cleanedResponse = emojify(cleanedResponse);
-
-        const chatObj = await message.getChat();
-        chatObj.sendStateTyping();
-
-        const typingTimeIndicator = 1000;
-        await new Promise(resolve => setTimeout(resolve, typingTimeIndicator));
-
-        chatObj.clearState();
-        const finalResponse = await message.reply(cleanedResponse);
-
-        // 5. Update History
-        chatHistory.push({ role: "model", text: finalResponse.body });
-        await saveChatHistory(chatId, chatHistory);
-
-        Logger.success('AI_CHIEF', `AI response sent in ${(Date.now() - thinkingStart) / 1000}s`);
     } catch (error) {
-        Logger.error('AI_CHIEF', 'Orchestration failed', { error: error.message });
-        await message.reply("Maaf, AI-Haikaru sedang pusing. Coba lagi nanti ya! 🙏");
+        Logger.error('AI_CHAT', 'Error processing message', error);
+        await msg.reply("Maaf, ada gangguan pada sistem AI-ku. Coba lagi nanti ya.");
     }
 }
 
-/**
- * Handle function calls from AI
- */
 /**
  * Handle function calls from AI
  */
@@ -149,6 +158,9 @@ async function handleFunctionCalls(bot, message, chat, chatId, chatHistory, func
             }
         } catch (error) {
             Logger.error('AI_FUNCTION', `Error in ${call.name}`, { error: error.message });
+            // Notify user about function failure
+            await message.reply(`⚠️ Waduh, gagal jalankan fungsi "${call.name}". Error: ${error.message}`);
+            chatHistory.push({ role: "model", text: `[Function Error: ${call.name}]` });
         }
     }
     await saveChatHistory(chatId, chatHistory);

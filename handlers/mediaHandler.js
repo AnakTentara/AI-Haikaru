@@ -12,6 +12,22 @@ export async function processIncomingMedia(bot, message) {
         Logger.info('MEDIA_HANDLER', 'Processing incoming media...');
         const media = await message.downloadMedia();
         if (!media) return null;
+        
+        // Security: Whitelist allowed MIME types
+        const allowedMimeTypes = [
+            // Images
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
+            // Documents
+            'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain',
+            // Audio
+            'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/wav'
+        ];
+        
+        if (!allowedMimeTypes.includes(media.mimetype)) {
+            Logger.warning('MEDIA_HANDLER', `Unsupported MIME type: ${media.mimetype}`);
+            await message.reply(`⚠️ Maaf, format file ini tidak didukung: ${media.mimetype}`);
+            return null;
+        }
 
         const buffer = Buffer.from(media.data, 'base64');
         const mediaContext = {
