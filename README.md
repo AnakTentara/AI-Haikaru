@@ -1,341 +1,150 @@
-# 🤖 AI-Haikaru
+# 🤖 AI-Haikaru (Next-Gen Gemini Agent)
 
-> **WhatsApp AI Bot** dengan Google Gemini AI - Teman chatting yang asik, pintar, dan siap bantu 24/7!
+**AI-Haikaru** adalah bot WhatsApp canggih yang ditenagai sepenuhnya oleh **Google Gemini**. Bot ini dirancang untuk menjadi asisten pribadi yang cerdas, memiliki memori jangka panjang, dan mampu menangani tugas berat tanpa biaya mahal (menggunakan strategi rotasi API Key yang cerdas).
 
-[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](https://github.com/AnakTentara/AI-Haikaru)
-[![Node.js](https://img.shields.io/badge/node.js-v18+-green.svg)](https://nodejs.org)
-[![License](https://img.shields.io/badge/license-ISC-orange.svg)](LICENSE)
+## ✨ Sorotan Utama (Highlight)
 
-Bot WhatsApp modular berbasis **whatsapp-web.js** dan **Google Gemini AI** dengan fitur AI chat yang cerdas, support image processing, dan persistent chat history menggunakan MongoDB.
+### 🧠 Arsitektur "Dual-Pool" AI
 
----
+Sistem ini tidak lagi menggunakan OpenAI. Sebagai gantinya, ia menggunakan **45 API Key Gemini** yang dibagi menjadi dua kolam (pools):
 
-## ✨ Fitur Utama
+* **Main Pool (Key 1-40):** Menangani percakapan utama, coding, analisis audio, dan tugas berat.
+* **Helper Pool (Key 41-45):** Khusus menangani tugas latar belakang seperti **Reaksi Emoji Otomatis**, **Google Search Summary**, dan **Pesan Singkat**.
+* *Hasil:* Bot sangat tangguh terhadap *Rate Limit* (Error 429) dan reaksi emoji tidak memakan kuota chat utama.
 
-### 🧠 **AI Chat dengan Gemini**
-- Percakapan natural dengan personality santai & gaul ala gen Z
-- Context-aware chat history (tersimpan per chat ID)
-- Support image analysis (kirim gambar + pertanyaan)
-- Smart mention detection di grup
-- Reply-to-bot detection
+### 🕒 Context & Time Awareness
 
-### 🛠️ **Sistem Modular**
-- Dynamic command loading dari folder `commands/`
-- Event-driven architecture
-- Clean & maintainable code structure
-- Easy to extend dengan command baru
+Haikaru kini sadar waktu dan identitas lawan bicara secara presisi.
 
-### 💾 **Database Integration**
-- MongoDB untuk persistent chat history
-- Auto-save conversation context
-- Support multi-chat management
-
-### 🎨 **Personality Custom**
-- WhatsApp-formatted responses (*bold*, _italic_, ```code```)
-- Emoji-rich replies (😭, :v, 🔥)
-- Persona "Haikaru" yang friendly & helpful
+* **Metadata Input:** Pesan diproses dengan format `[JAM, TANGGAL] [Nama] [Nomor] : Pesan`.
+* **Smart Tagging:** Bot bisa me-mention user dengan aman menggunakan format internal `@628xxx` yang dikonversi otomatis oleh WA.
 
 ---
 
-## 📁 Struktur Proyek
+## 📋 Daftar Fitur Lengkap
 
-```
-AI-Haikaru/
-├── 📝 index.js              # Entry point & WhatsAppBot class
-├── 🔧 config.json           # Bot configuration
-├── 📦 package.json          # Dependencies & scripts
-├── 🌐 server.js             # Express server (uptime monitoring)
-│
-├── 📂 commands/             # Bot commands (auto-loaded)
-│   ├── ping.js             # Cek responsivitas
-│   ├── help.js             # Menu bantuan
-│   ├── info.js             # Info bot & statistik
-│   └── everyone.js         # Tag semua member grup
-│
-├── 📂 events/               # WhatsApp event handlers
-│   ├── ready.js            # Bot ready event
-│   ├── qr.js               # QR code display
-│   └── message.js          # ⚡ Main message router & AI logic
-│
-├── 📂 handlers/             # Business logic processors
-│   ├── geminiProcessor.js  # Gemini AI integration
-│   ├── dbHandler.js        # MongoDB operations
-│   └── persona.js          # AI personality definitions
-│
-└── 📂 config/
-    └── puppeteer.js        # Puppeteer configuration
-```
+### 💬 Kecerdasan Buatan (AI Chat)
+
+* **Percakapan Natural:** Menggunakan persona "Haikaru" yang santai, akrab, dan membantu.
+* **Memori Permanen:** Bot bisa mengingat fakta spesifik tentang user (nama, hobi, dll) selamanya via database lokal.
+* **Analisis Audio:** Kirim *Voice Note* (VN), Haikaru akan mendengarkan dan merangkum isinya.
+* **Analisis Gambar:** Kirim gambar dan tanya "Gambar apa ini?", Haikaru akan menjelaskannya.
+
+### 🛠️ Tools & Utilitas
+
+* **Generate Image:** Membuat gambar AI (via Pollinations/Flux) dari deskripsi teks.
+* *Cara:* Chat biasa "Buatkan gambar kucing cyberpunk" atau via command `!img`.
+
+
+* **Google Search:** Mencari informasi real-time (berita, cuaca, skor bola) langsung dari internet.
+* *Cara:* "Siapa pemenang piala dunia terakhir?" atau "Cuaca Jakarta hari ini".
+
+
+* **Sticker Maker:** Mengubah gambar/video/gif menjadi stiker WhatsApp secara otomatis.
+* *Cara:* Kirim gambar dengan caption `!sticker`.
+
+
+
+### 👥 Manajemen Grup
+
+* **Tag Everyone:** Mention semua member grup (hanya jika diminta owner/admin atau situasi darurat).
+* *Cara:* Command `!everyone` atau minta AI "tag semua orang".
+
+
+* **Auto Reaction:** Bot memberikan reaksi emoji (👍, ❤️, 😂) pada pesan user secara otomatis sesuai konteks obrolan.
+* **Ignore Mode:** Bisa diatur untuk mengabaikan grup tertentu agar tidak spam.
+
+### ⚙️ Sistem & Maintenance
+
+* **Ping Check:** Cek status latensi/responsivitas bot (`!ping`).
+* **Bot Info:** Melihat statistik penggunaan token dan status server (`!info`).
+* **Multi-Key Rotation:** Otomatis pindah ke API Key cadangan jika Key utama habis limit.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Instalasi
 
-### 1️⃣ **Prerequisites**
+### 1. Prasyarat
 
-- **Node.js** v18 atau lebih baru
-- **MongoDB** (local atau cloud - MongoDB Atlas)
-- **Google Gemini API Key** ([Dapatkan gratis di sini](https://aistudio.google.com/app/apikey))
-- **Google Chrome** (untuk Puppeteer/WhatsApp Web)
+* Node.js (versi 18 atau lebih baru).
+* Google Chrome / Chromium terinstall di server/PC.
+* FFmpeg (wajib untuk fitur stiker & media).
 
-### 2️⃣ **Installation**
+### 2. Clone & Install
 
 ```bash
-# Clone repository
 git clone https://github.com/AnakTentara/AI-Haikaru.git
 cd AI-Haikaru
-
-# Install dependencies
 npm install
+
 ```
 
-### 3️⃣ **Environment Setup**
+### 3. Konfigurasi Environment (.env)
 
-Buat file `.env` di **parent directory** (`d:\code\waweb\.env`) dengan isi:
+Buat file `.env` di root folder. Kamu membutuhkan banyak API Key Gemini (gratis via Google AI Studio) untuk performa maksimal.
+
+Format `.env`:
 
 ```env
-# Google Gemini AI
-GEMINI_API_KEY=your_gemini_api_key_here
+# --- KONFIGURASI UTAMA ---
+OWNER_NUMBER=628xxxxxx
 
-# MongoDB Connection
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/
-DB_NAME=ai_bot_database
+# --- AI KEYS (ROTATION SYSTEM) ---
+# Key 1 (Primary)
+GEMINI_API_KEY=AIzaSy...
 
-# Server (Optional)
-PORT=3000
+# Key 2 sampai 40 (MAIN POOL - Untuk Chat & Logic)
+GEMINI_API_KEY_2=AIzaSy...
+GEMINI_API_KEY_3=AIzaSy...
+# ... (lanjutkan sampai 40) ...
+GEMINI_API_KEY_40=AIzaSy...
 
-# Chrome Path (Optional - auto-detect jika kosong)
-CHROME_PATH=
+# Key 41 sampai 45 (HELPER POOL - Untuk Reaksi & Search)
+GEMINI_API_KEY_41=AIzaSy...
+GEMINI_API_KEY_42=AIzaSy...
+GEMINI_API_KEY_43=AIzaSy...
+GEMINI_API_KEY_44=AIzaSy...
+GEMINI_API_KEY_45=AIzaSy...
+
 ```
 
-> **⚠️ Penting**: Jangan commit file `.env` ke repository!
+> **Tips:** Semakin banyak key yang kamu masukkan, semakin kecil kemungkinan bot terkena *Rate Limit* saat grup ramai.
 
-### 4️⃣ **Jalankan Bot**
+### 4. Menjalankan Bot
+
+Jalankan bot menggunakan Node:
 
 ```bash
-npm start
-```
-
-### 5️⃣ **Login WhatsApp**
-
-1. Bot akan menampilkan **QR Code** di terminal
-2. Buka WhatsApp di ponsel → **Pengaturan** → **Perangkat Tertaut**
-3. Tap **"Tautkan Perangkat"**
-4. Scan QR Code yang muncul di terminal
-5. Bot siap digunakan! ✅
-
----
-
-## 📱 Penggunaan
-
-### **Natural Language Commands (New! 🚀)**
-
-Bot sekarang bisa mengerti perintah bahasa manusia! Tidak perlu hafal prefix.
-
-| Perintah Natural | Fungsi | Contoh |
-|------------------|--------|--------|
-| "Info dong" | Cek info bot & user | "Haikaru, info dong" |
-| "Cek ping" | Cek responsivitas | "Bot masih hidup?" |
-| "Fitur apa aja?" | Tampilkan menu bantuan | "Bisa ngapain aja?" |
-| "Tag semua" | Tag semua member (Grup) | "Tag semua orang dong" |
-| "Buatin gambar..." | Generate gambar AI | "Buatin gambar kucing terbang" |
-
-### **Commands dengan Prefix** (Legacy Mode)
-Masih bisa digunakan sebagai fallback:
-| Command | Deskripsi |
-|---------|-----------|
-| `.ping` | Cek responsivitas |
-| `.help` | Menu bantuan |
-| `.info` | Info statistik |
-
-### **AI Chat**
-
-Bot akan **otomatis merespon** ketika:
-- ✅ Chat **pribadi** (semua pesan)
-- ✅ Di-**mention** di grup (`@628816197519`)
-- ✅ **Reply** ke pesan bot
-
-**Contoh percakapan:**
+node index.js
 
 ```
-User: Haikaru, jelasin dong apa itu AI?
-Bot: Woi! AI itu singkatan dari Artificial Intelligence... 😎🔥
 
-User: [kirim foto kucing] ini binatang apa?
-Bot: Wahh itu kucing lucu banget bro 😭 🐱
+Atau menggunakan PM2 (disarankan untuk server/VPS agar auto-restart):
 
-User: Buatin gambar pemandangan gunung
-Bot: Nih gambarnya udah jadi! 🎨✨ [Mengirim gambar]
+```bash
+pm2 start index.js --name "AI-Haikaru"
+
 ```
 
----
-
-## ⚙️ Konfigurasi
-
-### `config.json`
-
-```json
-{
-  "prefix": ".",                    // Command prefix
-  "botName": "AI-Haikaru",          // Nama bot
-  "language": "id",                 // Bahasa default
-  "features": {
-    "enableLogging": true,          // Enable console logging
-    "enableGemini": true            // Enable AI chat
-  },
-  "messages": {
-    "errorExecutingCommand": "❌ Terjadi kesalahan saat menjalankan perintah tersebut.",
-    "commandNotFound": "❌ Perintah tidak ditemukan."
-  },
-  "targetUserIds": [
-    "263801807044691",              // Bot Number (LID)
-    "628816197519"                  // Bot Number (normal)
-  ]
-}
-```
+Scan QR Code yang muncul di terminal menggunakan WhatsApp kamu.
 
 ---
 
-## 🔧 Development
+## 📂 Struktur File Penting
 
-### **Menambah Command Baru**
-
-Buat file di `commands/namacommand.js`:
-
-```javascript
-export default {
-  name: 'contoh',
-  description: 'Deskripsi command',
-  usage: '.contoh [args]',
-  prefixRequired: true,           // true = perlu prefix, false = trigger words
-  triggers: ['.contoh'],         // Kata pemicu (jika prefixRequired: false)
-  
-  async execute(message, args, bot) {
-    // Logic command di sini
-    await message.reply('Halo dari command baru! 🎉');
-  }
-};
-```
-
-Command akan **otomatis dimuat** saat bot restart!
-
-### **Menambah Event Handler**
-
-Buat file di `events/namaevent.js`:
-
-```javascript
-export default {
-  name: 'nama_event',             // Nama WhatsApp event (e.g., 'message_create')
-  once: false,                    // true = sekali, false = setiap kali
-  
-  execute(bot, ...args) {
-    // Logic event handler
-    console.log('Event triggered!');
-  }
-};
-```
+* **`index.js`**: Entry point, inisialisasi Client & API Pools (Main vs Helper).
+* **`handlers/geminiProcessor.js`**: Otak AI. Mengatur rotasi key dan pemilihan model (`flash` vs `flash-lite`).
+* **`handlers/aiChatHandler.js`**: Mengatur format pesan masuk (`[TIME] [USER]`) dan function calling.
+* **`handlers/persona.js`**: Mengatur kepribadian dan aturan tagging.
+* **`functions/`**: Folder berisi logika tools (Search, Image, dll).
+* **`commands/`**: Folder perintah manual (Legacy commands seperti `!sticker`).
 
 ---
 
-## 🎭 AI Personality
+## ⚠️ Disclaimer
 
-Bot menggunakan 2 persona:
-
-1. **HAIKARU_PERSONA** (`handlers/persona.js`)
-   - Untuk AI chat normal
-   - Gaya santai, gaul, gen Z
-   - Temperature: 0.7 (balanced)
-
-2. **HELPER_PERSONA** (`handlers/persona.js`)
-   - Untuk command responses (help, info, everyone)
-   - Lebih ringkas & to-the-point
-   - Temperature: 1.7 (creative)
-
-Customize personality di file `handlers/persona.js`!
+Project ini menggunakan **whatsapp-web.js** yang merupakan library *unofficial*. Gunakan dengan bijak. Risiko banned dari WhatsApp ditanggung pengguna jika melakukan spamming atau aktivitas mencurigakan.
 
 ---
 
-## 📊 Tech Stack
-
-| Teknologi | Versi | Kegunaan |
-|-----------|-------|----------|
-| **Node.js** | v18+ | Runtime JavaScript |
-| **whatsapp-web.js** | ^1.34.2 | WhatsApp Web automation |
-| **@google/genai** | ^1.30.0 | Google Gemini AI SDK |
-| **MongoDB** | ^7.0.0 | Database (chat history) |
-| **Express** | ^5.1.0 | Web server (health check) |
-| **Puppeteer** | (bundled) | Chrome automation |
-
----
-
-## 🔒 Keamanan & Best Practices
-
-✅ **DO:**
-- Simpan API key di `.env` (JANGAN di code!)
-- Update dependencies secara berkala
-- Monitor log errors untuk debugging
-- Backup database MongoDB
-
-❌ **DON'T:**
-- Commit `.env` atau `.local/` ke Git
-- Share API key di public
-- Gunakan bot untuk spam/violasi ToS WhatsApp
-
----
-
-## 🐛 Troubleshooting
-
-### **Bot tidak bisa login / QR tidak muncul**
-- Pastikan Google Chrome terinstall
-- Check `config/puppeteer.js` → set `CHROME_PATH` di `.env` jika perlu
-
-### **Error: GEMINI_API_KEY not found**
-- Cek file `.env` di parent directory
-- Pastikan `dotenv.config()` load dengan benar di `index.js`
-
-### **Chat history tidak tersimpan**
-- Cek koneksi MongoDB di `.env`
-- Test koneksi: `mongosh "MONGODB_URI"`
-- Check logs untuk error database
-
-### **Bot tidak merespon mention**
-- Update `targetUserIds` di `config.json` dengan nomor bot yang benar
-- Cek format: `"628xxxxxxxxxx"` (tanpa +, dengan kode negara)
-
----
-
-## 📝 Changelog
-
-### **v1.6.0** (Current)
-- ✨ Image processing support (send image to AI)
-- ✨ Smart mention detection dengan LID support
-- ✨ MongoDB chat history persistent
-- ✨ Improved persona system
-- ✨ Cross-platform Puppeteer config
-- 🐛 Bug fixes & performance improvements
-
----
-
-## 👨‍💻 Developer
-
-**Haikal Mabrur** (AnakTentara / Haikaru)
-- 📱 WhatsApp: 089675732001
-- 🎓 Student at MAN 1 Muara Enim
-- 💻 Passionate about AI, Programming & Arduino
-
----
-
-## 📄 License
-
-ISC License - Free to use & modify
-
----
-
-## 🙏 Credits
-
-- [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js) - WhatsApp Web API
-- [Google Gemini](https://ai.google.dev/) - AI Engine
-- [MongoDB](https://www.mongodb.com/) - Database
-
----
-
-**Made with ❤️ by Haikal | AI-Haikaru v1.6.0**
+Built with ❤️ by **Haikal** & **AI**.
