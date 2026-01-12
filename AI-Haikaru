@@ -1,0 +1,23 @@
+MONGODB_URI="mongodb+srv://aihaikaru-dbchat:tYJAgrxrNvhZVNDg@dbchat.k5qcrh3.mongodb.net/?retryWrites=true&w=majority&tlsInsecure=true"
+
+GEMINI_1_SAMPE_7="dari anaktentara125@gmail.com"
+GEMINI_API_KEY="AIzaSyBPzzvouMn-1bc2MOCnj52oBbJWOjEV4uI"
+GEMINI_API_KEY_2="AIzaSyA3XgGDzNRhGiX983K6elePm5ld8lyJqto"
+GEMINI_API_KEY_3="AIzaSyDAaFsXhASExGsLVMAkgptRsHQgg22juR8"
+GEMINI_API_KEY_4="AIzaSyCSth5pF8IbH22ybs8SDHjHJuN38BBfsYI"
+GEMINI_API_KEY_5="AIzaSyAleAd52HfLUClYz7th1naRIfAnTGzSgQ0"
+GEMINI_API_KEY_6="AIzaSyAw74AljK3i6Zlmia--Vnp0mAhaVnufPpM"
+GEMINI_API_KEY_7="AIzaSyCmOkxW8QqeEpGiRLg-iLuCkwRePVC6Pm8"
+GEMINI_8_SAMPE_10="dari anaktentara.alt@gmail.com"
+GEMINI_API_KEY_8="AIzaSyBCI_43rqZgiiyvpx4EpdU7l71DF0bQ3Cw"
+GEMINI_API_KEY_9="AIzaSyAbghzKAetPq0mwDOrSWl6nPGs7Joab4PM"
+GEMINI_API_KEY_10="AIzaSyA1OpVyyMfvUDYyw3txnKte5nvjXwGoTi8"
+
+
+OPENAI_API_KEY="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"
+
+SESSION_SECRET="kaCEypYGOYFFt6HJy7rG6QbippPAp1RHBAUfRcqv8qdEtZ/MFLi2bTTLsR3uFINk5lcZ1OeXt7S7y6576gIWng=="
+CHROME_PATH="/usr/bin/google-chrome-stable"
+
+DATASET_BASE_URL=http://dataset-man.haikaldev.my.id:3001
+DATASET_SECRET=1420057752Delapan823062025Haikal
