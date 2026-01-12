@@ -1,26 +1,6 @@
-import fs from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import modelManager from './modelManager.js';
 import { loadChatHistory } from './dbHandler.js';
 import Logger from './logger.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const IGNORE_FILE = join(__dirname, '../data/ignored_groups.json');
-
-// --- Helper Functions for Ignore List (Exported) ---
-export async function areGroupsIgnored(chatId) {
-    try {
-        if (!fs.existsSync(IGNORE_FILE)) return false;
-        const data = fs.readFileSync(IGNORE_FILE, 'utf8');
-        const ignoredList = JSON.parse(data);
-        return ignoredList.includes(chatId);
-    } catch (error) {
-        console.error("Error checking ignore list:", error);
-        return false;
-    }
-}
 
 /**
  * AutonomousHandler
@@ -34,52 +14,6 @@ class AutonomousHandler {
             minInterval: 60 * 60 * 1000, // 1 hour (default)
             chance: 0.1 // 10% chance to chat when thinking
         };
-        this.ensureFileExists();
-    }
-
-    ensureFileExists() {
-        // Buat folder data jika belum ada
-        const dataDir = dirname(IGNORE_FILE);
-        if (!fs.existsSync(dataDir)){
-            fs.mkdirSync(dataDir, { recursive: true });
-        }
-        
-        if (!fs.existsSync(IGNORE_FILE)) {
-            fs.writeFileSync(IGNORE_FILE, JSON.stringify([]));
-        }
-    }
-
-    async addToIgnore(chatId) {
-        const list = this.getIgnoreList();
-        if (!list.includes(chatId)) {
-            list.push(chatId);
-            this.saveIgnoreList(list);
-            return true;
-        }
-        return false;
-    }
-
-    async removeFromIgnore(chatId) {
-        let list = this.getIgnoreList();
-        if (list.includes(chatId)) {
-            list = list.filter(id => id !== chatId);
-            this.saveIgnoreList(list);
-            return true;
-        }
-        return false;
-    }
-
-    getIgnoreList() {
-        try {
-            if (!fs.existsSync(IGNORE_FILE)) return [];
-            return JSON.parse(fs.readFileSync(IGNORE_FILE, 'utf8'));
-        } catch (e) {
-            return [];
-        }
-    }
-
-    saveIgnoreList(list) {
-        fs.writeFileSync(IGNORE_FILE, JSON.stringify(list, null, 2));
     }
 
     /**
@@ -113,11 +47,6 @@ class AutonomousHandler {
      */
     async think(chatId) {
         try {
-            // Cek dulu apakah grup ini di-ignore
-            if (await areGroupsIgnored(chatId)) {
-                return;
-            }
-
             const chat = await this.bot.client.getChatById(chatId);
             if (!chat.isGroup) return; // Only for groups for now
 
@@ -131,6 +60,11 @@ class AutonomousHandler {
             // Load History
             const history = await loadChatHistory(chatId, 20);
             if (history.length === 0) return;
+
+            const lastMsg = history[history.length - 1];
+            const lastMsgTime = new Date(); // Need to parse timestamp from text if possible, or just assume recent
+            // For simplicity, we just check if the last message passed some time ago via DB if we stored timestamp?
+            // Since we store string text, we rely on "Is the group dead?" logic from AI.
 
             // 2. Decision Making via AI
             const decisionPrompt = `
@@ -159,16 +93,8 @@ Output JSON:
 }
 `;
 
-            // Gunakan Helper Clients jika tersedia untuk 'thinking' agar hemat kuota utama
-            // Fallback ke Main Clients jika helper tidak ada
-            let clientObj;
-            if (this.bot.helperClients && this.bot.helperClients.length > 0) {
-                 clientObj = this.bot.helperClients[Math.floor(Math.random() * this.bot.helperClients.length)];
-            } else {
-                 clientObj = this.bot.geminiClients[0];
-            }
-
-            const modelId = "gemini-2.5-flash-lite"; // Hemat token & cepat
+            const modelId = modelManager.selectModel('short'); // Use cheap model for thinking
+            const clientObj = this.bot.geminiClients[0]; // Use primary key for now logic needs refine
 
             const completion = await clientObj.client.chat.completions.create({
                 model: modelId,

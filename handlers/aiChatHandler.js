@@ -1,119 +1,82 @@
-import { getGeminiChatResponse } from './geminiProcessor.js';
-import { loadChatHistory, saveChatHistory, appendChatMessage, getPermanentMemory, loadMemory, saveMemory } from './dbHandler.js';
-import { areGroupsIgnored } from './autonomousHandler.js'; 
+import { loadChatHistory, saveChatHistory, loadMemory, saveMemory } from "./dbHandler.js";
+import { getGeminiChatResponse } from "./geminiProcessor.js";
+import * as emoji from 'node-emoji';
 import Logger from "./logger.js";
 
 /**
  * Orchestrates the AI response flow
  */
-export async function handleMessage(bot, msg) {
-    const chatId = msg.from;
-    
-    // 1. Cek Ignore List (untuk mode autonomous/grup)
+export async function orchestrateAIResponse(bot, message, chat, chatId, newMessage) {
     try {
-        if (await areGroupsIgnored(chatId)) return;
-    } catch (e) {
-        // Fallback aman jika cek ignore gagal
-    }
+        const historyLimit = 50;
+        const thinkingStart = Date.now();
 
-    // 2. Typing Indicator
-    try {
-        const chat = await msg.getChat();
-        await chat.sendStateTyping();
-    } catch (e) {
-        // Ignore typing errors
-    }
+        // 1. Prepare Context
+        const permanentMemory = await loadMemory(chatId);
+        const chatHistory = await loadChatHistory(chatId, historyLimit);
 
-    // 3. Ambil Detail Pengirim (Name, Number, LID)
-    // FIX: Bungkus getContact dengan try-catch untuk menangani bug WA Web terbaru
-    let contactName = "Unknown";
-    let contactNumber = "";
-    let lid = "N/A";
+        // 2. Get AI Response
+        Logger.ai('AI_CHIEF', 'Requesting response from Gemini fallback engine...');
+        const aiResponse = await getGeminiChatResponse(bot, chatHistory, permanentMemory);
 
-    try {
-        const contact = await msg.getContact();
-        contactName = contact.name || contact.pushname || contact.number;
-        contactNumber = contact.number;
-        lid = (contact.id && contact.id._serialized) ? contact.id._serialized : "N/A";
-    } catch (error) {
-        // Fallback jika getContact gagal (Solusi Anti-Crash)
-        const author = msg.author || msg.from;
-        contactNumber = author.split('@')[0];
-        // Coba ambil notifyName dari raw data message jika ada
-        if (msg._data && (msg._data.notifyName || msg._data.pushname)) {
-            contactName = msg._data.notifyName || msg._data.pushname;
-        } else {
-            contactName = contactNumber;
+        // 3. Handle Function Calls
+        if (aiResponse.type === 'function_call') {
+            Logger.ai('AI_CHIEF', 'Executing AI function calls');
+            await handleFunctionCalls(bot, message, chat, chatId, chatHistory, aiResponse.functionCalls);
+            return;
         }
-    }
-    
-    // Pastikan LID terset (fallback)
-    if (lid === "N/A") {
-         const senderId = msg.author || msg.from;
-         if (senderId.includes('@lid')) lid = senderId;
-    }
 
-    // 4. Format Waktu: [HH:MM:SS, DD/MM/YYYY]
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('id-ID', { hour12: false });
-    const dateStr = now.toLocaleDateString('id-ID');
-    const timestamp = `${timeStr}, ${dateStr}`;
+        // 4. Clean & Send Response
+        // 4. Clean & Send Response
+        // Remove Identity Tags, Timestamps, and accidental JSON dumps
+        const aggressivePrefixRegex = /^(\[.*?\]\s*)+:?\s*/i;
+        let cleanedResponse = aiResponse.replace(aggressivePrefixRegex, "").trim();
 
-    // 5. Susun Pesan dengan Format Baru
-    const userMessageContent = `[${timestamp}] [${contactName}] [Number: ${contactNumber} ; Lid: ${lid}] : ${msg.body}`;
+        // Anti-Hallucination: If response implies it's sending JSON/History
+        if (cleanedResponse.startsWith('{"') || cleanedResponse.includes('"role": "model"')) {
+            Logger.warn('AI_CHIEF', 'AI attempted to leak JSON history. Suppressed.');
+            cleanedResponse = "Waduh, aku agak error dikit nih. Coba tanya lagi ya? 😅";
+        }
 
-    // 6. Load History & Memory
-    const history = await loadChatHistory(chatId);
-    let memory = "";
-    try {
-        memory = await getPermanentMemory(chatId);
-    } catch (e) {
-        // Ignore memory load error
-    }
+        if (!cleanedResponse) cleanedResponse = aiResponse.trim();
 
-    // Tambahkan pesan user ke history
-    const newMessageEntry = { role: "user", text: userMessageContent };
-    await appendChatMessage(chatId, newMessageEntry);
-    
-    // Update history lokal untuk request kali ini
-    const currentHistory = [...history, newMessageEntry];
-
-    try {
-        // 7. Kirim ke Gemini
-        const response = await getGeminiChatResponse(bot, currentHistory, memory);
-
-        // 8. Handle Function Calls (Jika AI minta tool)
-        if (typeof response === 'object' && response.type === 'function_call') {
-            Logger.info('AI_CHAT', `Function Call detected: ${response.functionCalls.length} calls`);
-            
-            // Eksekusi function via functionHandler
-            // Gunakan dynamic import untuk menghindari circular dependency
-            const { handleFunctionCall } = await import('./functionHandler.js');
-            const functionResult = await handleFunctionCall(bot, msg, response.functionCalls);
-            
-            // Jika function menghasilkan text balasan (misal: hasil search), kirim ke user
-            if (functionResult) {
-                await msg.reply(functionResult);
-                await appendChatMessage(chatId, { role: "model", text: functionResult });
+        // Convert text emojis (:smile:) to Unicode (😄)
+        // Helper function for safe emoji conversion
+        const emojify = (str) => {
+            try {
+                // Dynamic import to avoid issues if dependency is missing during dev
+                return emoji.emojify(str);
+            } catch (e) {
+                return str;
             }
-            return; // Selesai
-        }
+        };
+        cleanedResponse = emojify(cleanedResponse);
 
-        // 9. Kirim Balasan Biasa (Text)
-        if (response) {
-            await msg.reply(response);
-            await appendChatMessage(chatId, { role: "model", text: response });
-        }
+        const chatObj = await message.getChat();
+        chatObj.sendStateTyping();
 
+        const typingTimeIndicator = 1000;
+        await new Promise(resolve => setTimeout(resolve, typingTimeIndicator));
+
+        chatObj.clearState();
+        const finalResponse = await message.reply(cleanedResponse);
+
+        // 5. Update History
+        chatHistory.push({ role: "model", text: finalResponse.body });
+        await saveChatHistory(chatId, chatHistory);
+
+        Logger.success('AI_CHIEF', `AI response sent in ${(Date.now() - thinkingStart) / 1000}s`);
     } catch (error) {
-        Logger.error('AI_CHAT', 'Error processing message', error);
-        // Jangan reply error ke user, cukup log saja agar tidak spam
+        Logger.error('AI_CHIEF', 'Orchestration failed', { error: error.message });
+        await message.reply("Maaf, AI-Haikaru sedang pusing. Coba lagi nanti ya! 🙏");
     }
 }
 
 /**
  * Handle function calls from AI
- * (Legacy/Fallback function preserved from workspace)
+ */
+/**
+ * Handle function calls from AI
  */
 async function handleFunctionCalls(bot, message, chat, chatId, chatHistory, functionCalls) {
     const functionToCommandMap = {
@@ -142,10 +105,14 @@ async function handleFunctionCalls(bot, message, chat, chatId, chatHistory, func
                     chatHistory.push({ role: "model", text: `[Memori Diperbarui: ${fact}]` });
                 }
             } else if (commandName === 'schedule_task') {
+                console.log('DEBUG Scheduler Args:', call.args); // DEBUGGING
+
+                // Flexible parsing in case AI hallucinates param names
                 const type = call.args.type || call.args.task_type || 'reminder';
                 const content = call.args.content || call.args.text || call.args.prompt || "Pengingat";
                 let delay = call.args.delay_seconds || call.args.delay || call.args.seconds || 10;
 
+                // Ensure delay is number
                 if (typeof delay === 'string') delay = parseInt(delay);
                 if (isNaN(delay)) delay = 10;
 
@@ -161,6 +128,8 @@ async function handleFunctionCalls(bot, message, chat, chatId, chatHistory, func
                 });
 
                 chatHistory.push({ role: "model", text: `[Tugas Dijadwalkan: ${type} dalam ${delay} detik]` });
+
+                // Confirmation message
                 const actionText = type === 'image_generation' ? 'buat gambar' : 'ingetin kamu';
                 await message.reply(`Oke siap! ${delay} detik lagi aku ${actionText} ya! 👌⏰`);
 
@@ -180,6 +149,7 @@ async function handleFunctionCalls(bot, message, chat, chatId, chatHistory, func
             }
         } catch (error) {
             Logger.error('AI_FUNCTION', `Error in ${call.name}`, { error: error.message });
+            // Notify user about function failure
             await message.reply(`⚠️ Waduh, gagal jalankan fungsi "${call.name}". Error: ${error.message}`);
             chatHistory.push({ role: "model", text: `[Function Error: ${call.name}]` });
         }
